@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dashboard Display</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&family=Outfit:wght@300;400;500;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div class="background-gradient"></div>
+    <div class="visualizer-container" id="visualizer"></div>
+    
+    <div class="dashboard">
+        
+        <!-- Top Bar: Clock + Weather (compact) -->
+        <div class="top-bar">
+            <div class="top-left">
+                <span id="time-display" class="top-time">12:00</span>
+                <span id="seconds-display" class="top-seconds">00 AM</span>
+                <span class="top-divider">·</span>
+                <span id="day-display">Monday</span>, <span id="date-display">January 1</span>
+            </div>
+            <div class="top-right">
+                <img id="weather-icon" src="" alt="" style="display: none;">
+                <span id="temperature">--°</span>
+                <span id="weather-desc" class="weather-desc-mini">Loading...</span>
+            </div>
+        </div>
+
+        <!-- Main: Spotify Player -->
+        <div class="spotify-section">
+            
+            <div id="spotify-unauth" class="spotify-unauth" style="display: none;">
+                <div class="unauth-icon">🎵</div>
+                <h2>Connect your Spotify</h2>
+                <p class="unauth-sub">Tap to link your account and control music</p>
+                <button id="spotify-login-btn" class="primary-btn">Connect Spotify</button>
+            </div>
+            
+            <div id="spotify-player" class="spotify-player" style="display: none;">
+                <div class="album-art-container">
+                    <img id="album-art" src="" alt="Album Art">
+                </div>
+                <div class="player-right">
+                    <div class="track-meta">
+                        <div id="track-name" class="track-name">Track Name</div>
+                        <div id="artist-name" class="artist-name">Artist Name</div>
+                    </div>
+                    
+                    <div class="progress-container">
+                        <div class="progress-bar-bg">
+                            <div id="progress-bar-fill" class="progress-bar-fill"></div>
+                        </div>
+                        <div class="time-labels">
+                            <span id="progress-time">0:00</span>
+                            <span id="total-time">0:00</span>
+                        </div>
+                    </div>
+                    
+                    <div class="controls-container">
+                        <button id="btn-shuffle" class="control-btn small-btn" title="Shuffle">
+                            <svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor"><path d="M10.59 9.17L5.41 4 4 5.41l5.17 5.17 1.42-1.41zM14.5 4l2.04 2.04L4 18.59 5.41 20 17.96 7.46 20 9.5V4h-5.5zm.33 9.41l-1.41 1.41 3.13 3.13L14.5 20H20v-5.5l-2.04 2.04-3.13-3.13z"/></svg>
+                        </button>
+                        <button id="btn-prev" class="control-btn" title="Previous">
+                            <svg width="28" height="28" viewBox="0 0 24 24" fill="currentColor"><path d="M6 6h2v12H6zm3.5 6l8.5 6V6z"/></svg>
+                        </button>
+                        <button id="btn-play-pause" class="control-btn play-btn" title="Play / Pause">
+                            <svg id="icon-play" width="32" height="32" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>
+                            <svg id="icon-pause" width="32" height="32" viewBox="0 0 24 24" fill="currentColor" style="display:none;"><path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"/></svg>
+                        </button>
+                        <button id="btn-next" class="control-btn" title="Next">
+                            <svg width="28" height="28" viewBox="0 0 24 24" fill="currentColor"><path d="M6 18l8.5-6L6 6v12zM16 6v12h2V6h-2z"/></svg>
+                        </button>
+                        <button id="btn-repeat" class="control-btn small-btn" title="Repeat">
+                            <svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor"><path d="M7 7h10v3l4-4-4-4v3H5v6h2V7zm10 10H7v-3l-4 4 4 4v-3h12v-6h-2v4z"/></svg>
+                        </button>
+                    </div>
+
+                    <!-- Queue -->
+                    <div class="queue-container" id="queue-container">
+                        <div class="queue-header">Up Next</div>
+                        <div class="queue-list" id="queue-list">
+                            <!-- Queue items injected via JS -->
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <div id="spotify-idle" class="spotify-idle">
+                <div class="idle-icon">🎵</div>
+                <p>No music playing</p>
+                <p class="idle-sub">Play something on Spotify to see it here</p>
+            </div>
+        </div>
+
+    </div>
+
+    <!-- Scripts -->
+    <script src="config.js"></script>
+    <script src="spotify.js"></script>
+    <script src="app.js"></script>
+</body>
+</html>
