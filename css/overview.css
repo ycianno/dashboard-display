@@ -1,0 +1,473 @@
+/* ==========================================================================
+   Overview view — the "glance from across the room" page
+   ========================================================================== */
+
+/* Two columns rather than three: the earlier full-height clock column left a
+   large empty block under the time. */
+.ov {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1.22fr);
+    grid-template-rows: minmax(0, 1.05fr) minmax(0, 0.95fr);
+    grid-template-areas:
+        'clock wx'
+        'np    health';
+    gap: var(--gutter);
+    height: 100%;
+}
+
+/* ── Hero clock ──────────────────────────────────────────────────────────── */
+
+.ov-clock {
+    grid-area: clock;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    gap: var(--s-3);
+    padding: var(--s-6) var(--s-7);
+    position: relative;
+    overflow: hidden;
+}
+
+.ov-clock::after {
+    content: '';
+    position: absolute;
+    inset: auto -20% -40% -20%;
+    height: 60%;
+    background: radial-gradient(60% 100% at 50% 100%, var(--accent-glow), transparent 70%);
+    opacity: 0.5;
+    pointer-events: none;
+}
+
+.hero-time {
+    display: flex;
+    align-items: baseline;
+    gap: 0.5rem;
+    font-family: var(--font-display);
+}
+
+.hero-time .hh {
+    font-size: var(--t-4xl);
+    font-weight: 800;
+    letter-spacing: -0.04em;
+    line-height: 0.9;
+}
+
+.hero-time .ap {
+    font-size: var(--t-xl);
+    font-weight: 700;
+    color: var(--text-2);
+}
+
+.hero-date {
+    font-family: var(--font-display);
+    font-size: var(--t-xl);
+    font-weight: 600;
+    color: var(--text-1);
+}
+
+.hero-sub {
+    font-size: var(--t-md);
+    color: var(--text-2);
+}
+
+.sun-row {
+    display: flex;
+    align-items: center;
+    gap: var(--s-3);
+    margin-top: auto;
+    padding-top: var(--s-5);
+    border-top: 1px solid var(--stroke-1);
+    position: relative;
+}
+
+.sun-item {
+    display: flex;
+    align-items: center;
+    gap: var(--s-2);
+    font-size: var(--t-sm);
+    color: var(--text-2);
+    font-weight: 600;
+    white-space: nowrap;
+}
+
+.sun-item .ic { width: 1.1rem; height: 1.1rem; color: var(--text-3); }
+
+/* Where we are between sunrise and sunset */
+.daylight {
+    position: relative;
+    flex: 1;
+    height: 0.3rem;
+    border-radius: var(--r-pill);
+    background: var(--surface-sunken);
+    min-width: 3rem;
+}
+
+.daylight > i {
+    position: absolute;
+    inset: 0 auto 0 0;
+    width: 0%;
+    border-radius: var(--r-pill);
+    background: linear-gradient(90deg, #f59e0b, #fbbf24, #fb923c);
+    transition: width var(--dur-slow) var(--ease-out);
+}
+
+.daylight .marker {
+    position: absolute;
+    top: 50%;
+    left: 0;
+    width: 0.65rem;
+    height: 0.65rem;
+    border-radius: 50%;
+    background: #fff;
+    box-shadow: 0 0 0.55rem rgba(251, 191, 36, 0.9);
+    transform: translate(-50%, -50%);
+    transition: left var(--dur-slow) var(--ease-out);
+}
+
+/* ── Weather ─────────────────────────────────────────────────────────────── */
+
+.ov-wx {
+    grid-area: wx;
+    display: flex;
+    flex-direction: column;
+    padding: var(--s-5);
+    gap: var(--s-3);
+    min-height: 0;
+    overflow: hidden;
+}
+
+.wx-now {
+    display: flex;
+    align-items: center;
+    gap: var(--s-4);
+}
+
+.wx-now .wx-icon {
+    width: 3.6rem;
+    height: 3.6rem;
+    flex-shrink: 0;
+}
+
+.wx-now-main {
+    display: flex;
+    flex-direction: column;
+    gap: 0.1rem;
+    flex: 1;
+    min-width: 0;
+}
+
+.wx-now-temp {
+    display: flex;
+    align-items: baseline;
+    gap: var(--s-3);
+}
+
+.wx-now-temp .t {
+    font-family: var(--font-display);
+    font-size: var(--t-3xl);
+    font-weight: 700;
+    line-height: 1;
+    letter-spacing: -0.03em;
+}
+
+.wx-now-temp .hl {
+    font-size: var(--t-sm);
+    font-weight: 600;
+    color: var(--text-2);
+}
+
+.wx-now-desc {
+    font-size: var(--t-md);
+    font-weight: 600;
+    color: var(--text-1);
+}
+
+.wx-now-place {
+    font-size: var(--t-sm);
+    color: var(--text-2);
+}
+
+.wx-facts {
+    display: flex;
+    gap: var(--s-4);
+    flex-wrap: wrap;
+}
+
+.wx-fact {
+    display: flex;
+    align-items: center;
+    gap: 0.35rem;
+    font-size: var(--t-sm);
+    font-weight: 600;
+    color: var(--text-2);
+}
+
+.wx-fact .ic { width: 1rem; height: 1rem; color: var(--text-3); }
+
+/* Hourly strip */
+.wx-hours {
+    display: flex;
+    gap: var(--s-2);
+    overflow-x: auto;
+    padding-bottom: 0.3rem;
+    scrollbar-width: none;
+    /* `overflow-x: auto` cancels the automatic minimum size, so as a flex item
+       this strip would otherwise be squashed down to just its hour labels. */
+    flex: 0 0 auto;
+}
+
+.wx-hours::-webkit-scrollbar { display: none; }
+
+.wx-hour {
+    flex: 0 0 auto;
+    width: 3.6rem;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.3rem;
+    padding: 0.55rem 0.2rem;
+    border-radius: var(--r-sm);
+    background: var(--surface-1);
+    border: 1px solid var(--stroke-1);
+}
+
+.wx-hour.now {
+    background: var(--surface-3);
+    border-color: var(--accent-dim);
+}
+
+.wx-hour .h {
+    font-size: var(--t-xs);
+    font-weight: 700;
+    color: var(--text-3);
+}
+
+.wx-hour .wx-icon { width: 1.5rem; height: 1.5rem; }
+
+.wx-hour .t {
+    font-size: var(--t-sm);
+    font-weight: 700;
+}
+
+.wx-hour .p {
+    font-size: 0.62rem;
+    font-weight: 700;
+    color: #7dd3fc;
+    min-height: 0.8rem;
+}
+
+/* Daily forecast */
+.wx-days {
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+    margin-top: auto;
+}
+
+.wx-day {
+    display: grid;
+    grid-template-columns: 2.6rem 1.5rem minmax(0, 1fr) auto;
+    align-items: center;
+    gap: var(--s-3);
+    font-size: var(--t-sm);
+}
+
+.wx-day .d { font-weight: 700; color: var(--text-2); }
+.wx-day .wx-icon { width: 1.4rem; height: 1.4rem; }
+
+/* Temperature range bar across the week */
+.wx-range {
+    position: relative;
+    height: 0.3rem;
+    border-radius: var(--r-pill);
+    background: var(--surface-sunken);
+}
+
+.wx-range i {
+    position: absolute;
+    top: 0;
+    height: 100%;
+    border-radius: var(--r-pill);
+    background: linear-gradient(90deg, #60a5fa, #fbbf24, #f87171);
+}
+
+.wx-day .mm {
+    font-weight: 700;
+    color: var(--text-2);
+    white-space: nowrap;
+}
+
+.wx-day .mm b { color: var(--text-1); }
+
+/* ── Now playing card ────────────────────────────────────────────────────── */
+
+.ov-np {
+    grid-area: np;
+    display: flex;
+    flex-direction: column;
+    gap: var(--s-3);
+    padding: var(--s-5);
+    min-height: 0;
+    overflow: hidden;
+}
+
+.ov-np-body {
+    display: flex;
+    align-items: center;
+    gap: var(--s-4);
+    flex: 1;
+    min-height: 0;
+}
+
+.ov-np-art {
+    width: 7rem;
+    height: 7rem;
+    border-radius: var(--r-md);
+    object-fit: cover;
+    flex-shrink: 0;
+    box-shadow: 0 0.7rem 1.6rem rgba(0, 0, 0, 0.5);
+}
+
+.ov-np-meta {
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 0.2rem;
+}
+
+.ov-np-meta .t {
+    font-family: var(--font-display);
+    font-size: var(--t-lg);
+    font-weight: 700;
+    line-height: 1.2;
+}
+
+.ov-np-meta .a {
+    font-size: var(--t-md);
+    color: var(--text-2);
+}
+
+.ov-np-progress {
+    display: flex;
+    align-items: center;
+    gap: var(--s-3);
+    font-size: var(--t-xs);
+    font-weight: 600;
+    color: var(--text-3);
+}
+
+.ov-np-progress .bar {
+    flex: 1;
+    height: 0.25rem;
+    border-radius: var(--r-pill);
+    background: var(--surface-sunken);
+    overflow: hidden;
+}
+
+.ov-np-progress .bar > i {
+    display: block;
+    height: 100%;
+    width: 0%;
+    border-radius: var(--r-pill);
+    background: var(--accent);
+    transition: width 1s linear;
+}
+
+.ov-np-state {
+    display: flex;
+    align-items: center;
+    gap: var(--s-2);
+    font-size: var(--t-xs);
+    font-weight: 700;
+    color: var(--text-3);
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    margin-top: 0.2rem;
+}
+
+/* ── Health card ─────────────────────────────────────────────────────────── */
+
+.ov-health {
+    grid-area: health;
+    display: flex;
+    flex-direction: column;
+    gap: var(--s-3);
+    padding: var(--s-5);
+    min-height: 0;
+    overflow: hidden;
+}
+
+.health-grid {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: var(--s-3);
+}
+
+.health-stat {
+    display: flex;
+    flex-direction: column;
+    gap: 0.1rem;
+    padding: var(--s-3);
+    border-radius: var(--r-sm);
+    background: var(--surface-1);
+    border: 1px solid var(--stroke-1);
+}
+
+.health-stat .v {
+    font-family: var(--font-display);
+    font-size: var(--t-xl);
+    font-weight: 700;
+    line-height: 1;
+}
+
+.health-stat .k {
+    font-size: 0.62rem;
+    font-weight: 700;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--text-3);
+}
+
+.health-stat.ok .v { color: var(--ok); }
+.health-stat.warn .v { color: var(--warn); }
+.health-stat.crit .v { color: var(--crit); }
+
+.health-alerts {
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+    flex: 1;
+    min-height: 0;
+}
+
+.health-alert {
+    display: flex;
+    align-items: center;
+    gap: var(--s-2);
+    padding: 0.4rem 0.6rem;
+    border-radius: var(--r-xs);
+    font-size: var(--t-sm);
+    background: var(--surface-1);
+}
+
+.health-alert .src {
+    font-weight: 700;
+    color: var(--text-1);
+}
+
+.health-alert .msg {
+    color: var(--text-2);
+    min-width: 0;
+}
+
+.health-alert.crit .src { color: var(--crit); }
+.health-alert.warn .src { color: var(--warn); }
+
+.health-clear {
+    display: flex;
+    align-items: center;
+    gap: var(--s-2);
+    font-size: var(--t-sm);
+    font-weight: 600;
+    color: var(--ok);
+}

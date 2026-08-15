@@ -1,0 +1,501 @@
+/* ==========================================================================
+   Infrastructure view
+   ========================================================================== */
+
+/* Flex, not grid: the summary strip is `hidden` in the unconfigured and
+   loading states, and a display:none element stops being a grid item — which
+   pushed the body up into the `auto` row and left dead space below it. */
+.infra {
+    display: flex;
+    flex-direction: column;
+    gap: var(--gutter);
+    height: 100%;
+}
+
+.infra-summary {
+    flex: 0 0 auto;
+}
+
+/* ── Summary strip ───────────────────────────────────────────────────────── */
+
+.infra-summary {
+    display: flex;
+    align-items: center;
+    gap: var(--s-5);
+    padding: var(--s-4) var(--s-5);
+    flex-wrap: wrap;
+}
+
+.stat {
+    display: flex;
+    flex-direction: column;
+    gap: 0.15rem;
+    min-width: 5rem;
+}
+
+.stat .v {
+    font-family: var(--font-display);
+    font-size: var(--t-xl);
+    font-weight: 700;
+    line-height: 1;
+    display: flex;
+    align-items: baseline;
+    gap: 0.2rem;
+}
+
+.stat .v small {
+    font-size: var(--t-sm);
+    font-weight: 600;
+    color: var(--text-3);
+}
+
+.stat .k {
+    font-size: var(--t-xs);
+    font-weight: 700;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--text-3);
+}
+
+.stat.ok .v { color: var(--ok); }
+.stat.warn .v { color: var(--warn); }
+.stat.crit .v { color: var(--crit); }
+
+.infra-alerts {
+    display: flex;
+    align-items: center;
+    gap: var(--s-2);
+    margin-left: auto;
+    flex-wrap: wrap;
+    justify-content: flex-end;
+    max-width: 55%;
+}
+
+.alert-chip {
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+    padding: 0.35rem 0.7rem;
+    border-radius: var(--r-pill);
+    font-size: var(--t-xs);
+    font-weight: 700;
+    border: 1px solid transparent;
+}
+
+.alert-chip .src { opacity: 0.75; font-weight: 600; }
+.alert-chip.warn { color: var(--warn); background: var(--warn-bg); border-color: rgba(251, 191, 36, 0.25); }
+.alert-chip.crit { color: var(--crit); background: var(--crit-bg); border-color: rgba(248, 113, 113, 0.28); }
+
+.stale-badge {
+    font-size: var(--t-xs);
+    font-weight: 600;
+    color: var(--text-3);
+}
+
+/* ── Body grid ───────────────────────────────────────────────────────────── */
+
+.infra-body {
+    display: grid;
+    grid-template-columns: minmax(0, 1.05fr) minmax(0, 1fr);
+    /* Without an explicit row the implicit `auto` track sizes to content, so
+       full-width states (setup, loading, error) only filled the top strip. */
+    grid-template-rows: minmax(0, 1fr);
+    gap: var(--gutter);
+    flex: 1;
+    min-height: 0;
+}
+
+/* Each column scrolls as a single surface. Letting the sections scroll
+   independently clipped host cards mid-way, which reads as broken rather
+   than as "there is more below". */
+.infra-col {
+    display: flex;
+    flex-direction: column;
+    gap: var(--gutter);
+    min-height: 0;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    scrollbar-width: none;
+}
+
+.infra-col::-webkit-scrollbar { display: none; }
+
+.section {
+    display: flex;
+    flex-direction: column;
+    flex: 0 0 auto;
+    overflow: hidden;
+}
+
+.section-head {
+    display: flex;
+    align-items: center;
+    gap: var(--s-3);
+    padding: var(--s-4) var(--s-5) var(--s-3);
+    flex-shrink: 0;
+}
+
+.section-head .eyebrow { flex: 1; }
+
+.section-head .count {
+    font-size: var(--t-xs);
+    font-weight: 700;
+    color: var(--text-3);
+    padding: 0.15rem 0.5rem;
+    border-radius: var(--r-pill);
+    background: var(--surface-1);
+    border: 1px solid var(--stroke-1);
+}
+
+.section-body {
+    padding: 0 var(--s-5) var(--s-5);
+}
+
+/* ── Host cards ──────────────────────────────────────────────────────────── */
+
+.host-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(15rem, 1fr));
+    gap: var(--s-3);
+}
+
+.host-card {
+    position: relative;
+    padding: var(--s-4);
+    border-radius: var(--r-md);
+    background: var(--surface-1);
+    border: 1px solid var(--stroke-1);
+    overflow: hidden;
+}
+
+.host-card.warn { border-color: rgba(251, 191, 36, 0.28); }
+.host-card.crit { border-color: rgba(248, 113, 113, 0.32); }
+
+.host-card.crit::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: radial-gradient(80% 60% at 50% 0%, rgba(248, 113, 113, 0.09), transparent 70%);
+    pointer-events: none;
+}
+
+.host-top {
+    display: flex;
+    align-items: center;
+    gap: var(--s-2);
+    margin-bottom: 0.15rem;
+}
+
+.host-name {
+    font-family: var(--font-display);
+    font-size: var(--t-lg);
+    font-weight: 700;
+    flex: 1;
+    min-width: 0;
+}
+
+.host-kind {
+    font-size: var(--t-xs);
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--text-3);
+    padding: 0.1rem 0.4rem;
+    border-radius: var(--r-xs);
+    background: var(--surface-2);
+}
+
+.host-sub {
+    font-size: var(--t-xs);
+    color: var(--text-3);
+    margin-bottom: var(--s-3);
+    display: flex;
+    gap: var(--s-2);
+    flex-wrap: wrap;
+}
+
+.host-sub span { white-space: nowrap; }
+
+/* Sparkline sits behind the CPU figure */
+.spark-wrap {
+    position: relative;
+    height: 2.6rem;
+    margin-bottom: var(--s-3);
+}
+
+.spark {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    overflow: visible;
+}
+
+.spark path.area { fill: var(--accent-glow); opacity: 0.4; }
+.spark path.line { fill: none; stroke: var(--accent); stroke-width: 1.5; stroke-linejoin: round; vector-effect: non-scaling-stroke; }
+
+.spark-label {
+    position: absolute;
+    left: 0;
+    top: 0;
+    display: flex;
+    align-items: baseline;
+    gap: 0.3rem;
+    font-family: var(--font-display);
+    font-weight: 700;
+}
+
+.spark-label .n { font-size: var(--t-xl); line-height: 1; }
+.spark-label .u { font-size: var(--t-xs); color: var(--text-3); letter-spacing: 0.08em; text-transform: uppercase; }
+
+.metric {
+    display: grid;
+    grid-template-columns: 2.6rem 1fr 2.6rem;
+    align-items: center;
+    gap: var(--s-3);
+    margin-bottom: 0.4rem;
+}
+
+.metric .k {
+    font-size: var(--t-xs);
+    font-weight: 700;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--text-3);
+}
+
+.metric .v {
+    font-size: var(--t-sm);
+    font-weight: 700;
+    text-align: right;
+    color: var(--text-2);
+}
+
+.metric.warn .v { color: var(--warn); }
+.metric.crit .v { color: var(--crit); }
+
+.host-foot {
+    display: flex;
+    gap: var(--s-3);
+    margin-top: var(--s-3);
+    padding-top: var(--s-3);
+    border-top: 1px solid var(--stroke-1);
+    font-size: var(--t-xs);
+    color: var(--text-3);
+}
+
+.host-foot b {
+    color: var(--text-2);
+    font-weight: 700;
+}
+
+/* ── Guest rows ──────────────────────────────────────────────────────────── */
+
+.guest-list,
+.svc-list,
+.storage-list {
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+}
+
+.guest-row {
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr) 3.4rem 3.4rem;
+    align-items: center;
+    gap: var(--s-3);
+    padding: 0.5rem 0.65rem;
+    border-radius: var(--r-sm);
+    background: var(--surface-1);
+    border: 1px solid transparent;
+}
+
+.guest-row.stopped { opacity: 0.5; }
+
+.guest-id {
+    font-family: var(--font-mono);
+    font-size: var(--t-xs);
+    font-weight: 600;
+    color: var(--text-3);
+    width: 2.4rem;
+}
+
+.guest-name {
+    display: flex;
+    align-items: center;
+    gap: var(--s-2);
+    min-width: 0;
+}
+
+.guest-name .n {
+    font-size: var(--t-md);
+    font-weight: 600;
+}
+
+.badge {
+    font-size: 0.62rem;
+    font-weight: 800;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    padding: 0.1rem 0.32rem;
+    border-radius: 0.3rem;
+    background: var(--surface-3);
+    color: var(--text-3);
+    flex-shrink: 0;
+}
+
+.badge.vm { color: #93c5fd; background: rgba(147, 197, 253, 0.13); }
+.badge.lxc { color: #c4b5fd; background: rgba(196, 181, 253, 0.13); }
+
+.guest-metric {
+    display: flex;
+    flex-direction: column;
+    gap: 0.2rem;
+}
+
+.guest-metric .v {
+    font-size: var(--t-xs);
+    font-weight: 700;
+    color: var(--text-2);
+    text-align: right;
+}
+
+/* ── Services ────────────────────────────────────────────────────────────── */
+
+.svc-row {
+    display: flex;
+    align-items: center;
+    gap: var(--s-3);
+    padding: 0.6rem 0.7rem;
+    border-radius: var(--r-sm);
+    background: var(--surface-1);
+    border: 1px solid transparent;
+}
+
+.svc-row.down {
+    border-color: rgba(248, 113, 113, 0.3);
+    background: var(--crit-bg);
+}
+
+.svc-name {
+    flex: 1;
+    min-width: 0;
+    font-size: var(--t-md);
+    font-weight: 600;
+}
+
+.svc-url {
+    font-size: var(--t-xs);
+    color: var(--text-3);
+}
+
+.svc-latency {
+    font-size: var(--t-sm);
+    font-weight: 700;
+    color: var(--text-2);
+}
+
+.svc-row.down .svc-latency { color: var(--crit); }
+
+/* ── Storage ─────────────────────────────────────────────────────────────── */
+
+.storage-row {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 5.5rem 3rem;
+    align-items: center;
+    gap: var(--s-3);
+    padding: 0.5rem 0.65rem;
+    border-radius: var(--r-sm);
+    background: var(--surface-1);
+}
+
+.storage-name {
+    font-size: var(--t-md);
+    font-weight: 600;
+}
+
+.storage-name small {
+    display: block;
+    font-size: var(--t-xs);
+    font-weight: 500;
+    color: var(--text-3);
+}
+
+.storage-pct {
+    font-size: var(--t-sm);
+    font-weight: 700;
+    text-align: right;
+    color: var(--text-2);
+}
+
+.storage-row.warn .storage-pct { color: var(--warn); }
+.storage-row.crit .storage-pct { color: var(--crit); }
+
+/* ── Setup card, shown until server.config.js exists ─────────────────────── */
+
+.setup {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: var(--s-4);
+    height: 100%;
+    text-align: center;
+    padding: var(--s-6);
+}
+
+.setup h2 {
+    font-family: var(--font-display);
+    font-size: var(--t-2xl);
+    font-weight: 700;
+}
+
+.setup p {
+    color: var(--text-2);
+    max-width: 34rem;
+    line-height: 1.6;
+    font-size: var(--t-md);
+}
+
+.setup pre {
+    font-family: var(--font-mono);
+    font-size: var(--t-sm);
+    text-align: left;
+    padding: var(--s-4) var(--s-5);
+    border-radius: var(--r-md);
+    background: var(--surface-sunken);
+    border: 1px solid var(--stroke-1);
+    color: var(--text-2);
+    line-height: 1.7;
+    overflow-x: auto;
+    max-width: 100%;
+}
+
+.setup pre b { color: var(--accent-soft); font-weight: 600; }
+
+.setup-actions {
+    display: flex;
+    gap: var(--s-3);
+    flex-wrap: wrap;
+    justify-content: center;
+}
+
+.setup-btn {
+    display: inline-flex;
+    align-items: center;
+    text-decoration: none;
+    gap: var(--s-2);
+    padding: 0.7rem 1.3rem;
+    border-radius: var(--r-pill);
+    background: var(--surface-2);
+    border: 1px solid var(--stroke-2);
+    font-size: var(--t-sm);
+    font-weight: 700;
+    color: var(--text-1);
+}
+
+.setup-btn.accent {
+    background: var(--accent);
+    border-color: transparent;
+    color: var(--accent-ink);
+}

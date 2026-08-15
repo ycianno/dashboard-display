@@ -1,0 +1,621 @@
+/* ==========================================================================
+   Now Playing view
+   ========================================================================== */
+
+.np {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 25rem;
+    gap: var(--gutter);
+    height: 100%;
+    transition: grid-template-columns 420ms var(--ease-out);
+}
+
+.np-stage {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: var(--s-4);
+    padding: var(--s-6);
+    min-width: 0;
+    position: relative;
+    overflow: hidden;
+}
+
+/* ── States ──────────────────────────────────────────────────────────────── */
+
+.np-state {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: var(--s-4);
+    text-align: center;
+    animation: riseIn var(--dur) var(--ease-out);
+}
+
+.np-state h2 {
+    font-family: var(--font-display);
+    font-size: var(--t-2xl);
+    font-weight: 700;
+}
+
+.np-state p {
+    color: var(--text-2);
+    font-size: var(--t-md);
+    max-width: 24rem;
+    line-height: 1.55;
+}
+
+.state-orb {
+    display: grid;
+    place-items: center;
+    width: 6rem;
+    height: 6rem;
+    border-radius: 50%;
+    background: var(--surface-1);
+    border: 1px solid var(--stroke-1);
+    color: var(--text-3);
+    animation: breathe 3.4s var(--ease-in-out) infinite;
+}
+
+.state-orb .ic { width: 2.8rem; height: 2.8rem; }
+
+.primary-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--s-2);
+    padding: 0.9rem 2rem;
+    border-radius: var(--r-pill);
+    background: var(--accent);
+    color: var(--accent-ink);
+    font-size: var(--t-md);
+    font-weight: 700;
+    box-shadow: 0 0.6rem 2rem var(--accent-dim);
+}
+
+/* ── Active player ───────────────────────────────────────────────────────── */
+
+.np-player {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    width: 100%;
+    max-width: 30rem;
+    animation: riseIn var(--dur-slow) var(--ease-out);
+}
+
+.art-frame {
+    position: relative;
+    width: min(20rem, 42vh);
+    aspect-ratio: 1;
+    border-radius: var(--r-xl);
+    flex-shrink: 0;
+    margin-bottom: var(--s-5);
+    transition: width 420ms var(--ease-out);
+}
+
+.art-frame::after {
+    /* Colour bloom cast by the artwork onto the card behind it. */
+    content: '';
+    position: absolute;
+    inset: 8%;
+    border-radius: var(--r-xl);
+    box-shadow: 0 1.6rem 4rem var(--accent-glow), 0 0.8rem 2rem rgba(0, 0, 0, 0.8);
+    transition: box-shadow 1.2s var(--ease-out);
+    z-index: 0;
+}
+
+.art-frame img {
+    position: relative;
+    z-index: 1;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    border-radius: var(--r-xl);
+    box-shadow: 0 1.2rem 2.4rem rgba(0, 0, 0, 0.55);
+    transition: transform var(--dur) var(--ease-out);
+}
+
+.art-frame:active img { transform: scale(0.97); }
+
+.art-frame .expand-hint {
+    position: absolute;
+    z-index: 2;
+    right: 0.7rem;
+    bottom: 0.7rem;
+    display: grid;
+    place-items: center;
+    width: 2.2rem;
+    height: 2.2rem;
+    border-radius: var(--r-sm);
+    background: rgba(4, 6, 12, 0.55);
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+    border: 1px solid var(--stroke-2);
+    color: var(--text-1);
+    opacity: 0.75;
+}
+
+.track-meta {
+    text-align: center;
+    width: 100%;
+    margin-bottom: var(--s-3);
+}
+
+.track-title {
+    font-family: var(--font-display);
+    font-size: var(--t-2xl);
+    font-weight: 800;
+    line-height: 1.15;
+    letter-spacing: -0.02em;
+}
+
+.track-artist {
+    font-size: var(--t-lg);
+    font-weight: 500;
+    color: var(--text-2);
+    margin-top: 0.25rem;
+}
+
+.track-album {
+    font-size: var(--t-sm);
+    color: var(--text-3);
+    margin-top: 0.3rem;
+}
+
+/* One-line lyric under the title — the lock-screen touch. */
+.lyric-cue {
+    min-height: 1.6rem;
+    margin-top: var(--s-3);
+    font-size: var(--t-lg);
+    font-weight: 600;
+    color: var(--accent-soft);
+    text-align: center;
+    line-height: 1.4;
+    opacity: 0;
+    transition: opacity var(--dur) var(--ease-out);
+}
+
+.lyric-cue.visible { opacity: 1; }
+
+/* Visualizer */
+.viz-wrap {
+    width: 100%;
+    display: flex;
+    justify-content: center;
+    margin-bottom: var(--s-2);
+}
+
+#viz {
+    width: 100%;
+    height: 2.2rem;
+}
+
+/* Progress */
+.progress {
+    width: 100%;
+    margin-bottom: var(--s-4);
+}
+
+.progress-hit {
+    /* Generous vertical padding so a fingertip can hit a 6px bar. */
+    padding: 0.7rem 0;
+    touch-action: none;
+}
+
+.progress-track {
+    position: relative;
+    height: 0.35rem;
+    border-radius: var(--r-pill);
+    background: var(--surface-3);
+}
+
+.progress-fill {
+    position: relative;
+    height: 100%;
+    width: 0%;
+    border-radius: var(--r-pill);
+    background: linear-gradient(90deg, var(--accent), var(--accent-soft));
+    box-shadow: 0 0 1rem var(--accent-glow);
+    transition: width 1s linear;
+}
+
+.progress-fill.seeking { transition: none; }
+
+.progress-knob {
+    position: absolute;
+    right: -0.45rem;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 0.9rem;
+    height: 0.9rem;
+    border-radius: 50%;
+    background: #fff;
+    box-shadow: 0 0.15rem 0.6rem rgba(0, 0, 0, 0.7);
+    transition: transform var(--dur-fast) var(--ease-out);
+}
+
+.progress-hit:active .progress-knob { transform: translateY(-50%) scale(1.35); }
+
+.time-row {
+    display: flex;
+    justify-content: space-between;
+    font-size: var(--t-sm);
+    font-weight: 600;
+    color: var(--text-2);
+    margin-top: 0.3rem;
+}
+
+/* Transport */
+.transport {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: var(--s-5);
+    margin-bottom: var(--s-4);
+}
+
+.tbtn {
+    display: grid;
+    place-items: center;
+    width: 3.1rem;
+    height: 3.1rem;
+    border-radius: 50%;
+    color: var(--text-2);
+    background: var(--surface-1);
+    border: 1px solid var(--stroke-1);
+}
+
+.tbtn.sm { width: 2.6rem; height: 2.6rem; }
+
+.tbtn.on {
+    color: var(--accent);
+    border-color: var(--accent-dim);
+    background: var(--surface-2);
+}
+
+.tbtn.on::after {
+    content: '';
+    position: absolute;
+    width: 0.25rem;
+    height: 0.25rem;
+    border-radius: 50%;
+    background: var(--accent);
+    transform: translateY(1.15rem);
+}
+
+.tbtn { position: relative; }
+
+.play-btn {
+    display: grid;
+    place-items: center;
+    width: 4.2rem;
+    height: 4.2rem;
+    border-radius: 50%;
+    background: var(--accent);
+    color: var(--accent-ink);
+    box-shadow: 0 0.6rem 2rem var(--accent-dim);
+}
+
+.play-btn .ic { width: 1.8rem; height: 1.8rem; }
+
+/* Secondary row: volume + device + repeat mode readout */
+.aux-row {
+    display: flex;
+    align-items: center;
+    gap: var(--s-4);
+    width: 100%;
+}
+
+.vol {
+    display: flex;
+    align-items: center;
+    gap: var(--s-3);
+    flex: 1;
+    min-width: 0;
+    color: var(--text-2);
+}
+
+.vol-hit {
+    flex: 1;
+    padding: 0.6rem 0;
+    touch-action: none;
+}
+
+.vol-track {
+    height: 0.3rem;
+    border-radius: var(--r-pill);
+    background: var(--surface-3);
+}
+
+.vol-fill {
+    height: 100%;
+    width: 60%;
+    border-radius: var(--r-pill);
+    background: var(--text-2);
+    transition: width var(--dur-fast) linear, background var(--dur) linear;
+}
+
+.vol-hit:active .vol-fill { background: var(--accent); }
+
+.device-btn {
+    display: flex;
+    align-items: center;
+    gap: var(--s-2);
+    max-width: 11rem;
+    padding: 0.5rem 0.85rem;
+    border-radius: var(--r-md);
+    background: var(--surface-1);
+    border: 1px solid var(--stroke-1);
+    color: var(--text-2);
+    font-size: var(--t-sm);
+    font-weight: 600;
+}
+
+.device-btn .ic { width: 1.05rem; height: 1.05rem; }
+
+/* ── Side panel ──────────────────────────────────────────────────────────── */
+
+.np-panel {
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    min-width: 0;
+}
+
+/* Anchored to the bottom of the panel: the digitizer on this display is
+   unreliable across the top of this area, so the controls live where touch
+   actually registers. Markup order matches, so no `order` juggling. */
+.panel-tabs {
+    display: flex;
+    gap: 0.25rem;
+    margin: 0 var(--s-4) var(--s-4);
+    padding: 0.3rem;
+    border-radius: var(--r-md);
+    background: var(--surface-sunken);
+    border: 1px solid var(--stroke-1);
+    flex-shrink: 0;
+}
+
+.panel-tab {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.4rem;
+    /* Deliberately tall — a flaky digitizer needs a forgiving target. */
+    min-height: 3.1rem;
+    padding: 0.65rem 0.5rem;
+    border-radius: var(--r-sm);
+    font-size: var(--t-sm);
+    font-weight: 700;
+    color: var(--text-3);
+    transition: all var(--dur) var(--ease-out);
+}
+
+.panel-tab .ic { width: 1.05rem; height: 1.05rem; }
+
+.panel-tab[aria-selected='true'] {
+    background: var(--surface-3);
+    color: var(--text-1);
+}
+
+.panel-tab[aria-selected='true'] .ic { color: var(--accent); }
+
+.panel-body {
+    flex: 1;
+    min-height: 0;
+    position: relative;
+}
+
+.panel-pane {
+    display: none;
+    height: 100%;
+    padding: var(--s-4) var(--s-4) 0;
+}
+
+.panel-pane.active {
+    display: block;
+    animation: riseIn var(--dur) var(--ease-out);
+}
+
+/* Queue */
+.queue {
+    display: flex;
+    flex-direction: column;
+    gap: 0.3rem;
+    height: 100%;
+}
+
+.queue-row {
+    display: flex;
+    align-items: center;
+    gap: var(--s-3);
+    padding: 0.5rem 0.6rem;
+    border-radius: var(--r-md);
+    border: 1px solid transparent;
+}
+
+.queue-row.now {
+    background: var(--surface-2);
+    border-color: var(--stroke-1);
+}
+
+.queue-idx {
+    width: 1.4rem;
+    text-align: center;
+    font-size: var(--t-sm);
+    font-weight: 700;
+    color: var(--text-3);
+}
+
+.queue-row img {
+    width: 2.7rem;
+    height: 2.7rem;
+    border-radius: var(--r-sm);
+    object-fit: cover;
+    flex-shrink: 0;
+}
+
+.queue-meta {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 0.1rem;
+}
+
+.queue-meta .t {
+    font-size: var(--t-md);
+    font-weight: 600;
+}
+
+.queue-meta .a {
+    font-size: var(--t-xs);
+    color: var(--text-2);
+}
+
+.queue-dur {
+    font-size: var(--t-xs);
+    font-weight: 600;
+    color: var(--text-3);
+}
+
+/* Little equaliser badge marking the track that is actually playing */
+.eq {
+    display: flex;
+    align-items: flex-end;
+    gap: 0.12rem;
+    height: 0.85rem;
+    width: 0.9rem;
+}
+
+.eq i {
+    flex: 1;
+    height: 100%;
+    background: var(--accent);
+    border-radius: 1px;
+    transform-origin: bottom;
+    animation: eqBounce 1s var(--ease-in-out) infinite;
+}
+
+.eq i:nth-child(2) { animation-duration: 0.72s; animation-delay: 0.18s; }
+.eq i:nth-child(3) { animation-duration: 1.24s; animation-delay: 0.05s; }
+
+.eq.paused i { animation-play-state: paused; }
+
+/* Lyrics */
+.lyrics {
+    height: 100%;
+    padding-block: 30%;
+    scroll-behavior: smooth;
+    /* The active line is scaled up slightly, which otherwise pushes a
+       horizontal scrollbar into the panel. */
+    overflow-x: hidden;
+}
+
+.lyrics-line {
+    font-size: var(--t-lg);
+    font-weight: 600;
+    line-height: 1.5;
+    color: var(--text-3);
+    padding: 0.35rem 0.4rem;
+    border-radius: var(--r-sm);
+    transition: color var(--dur) var(--ease-out), transform var(--dur) var(--ease-out);
+}
+
+.lyrics-line.past { color: var(--text-3); opacity: 0.45; }
+
+.lyrics-line.current {
+    color: var(--text-1);
+    transform: scale(1.02);
+    transform-origin: left center;
+}
+
+.lyrics-line.current::before {
+    content: '';
+    display: inline-block;
+    width: 0.2rem;
+    height: 1em;
+    margin-right: 0.5rem;
+    border-radius: var(--r-pill);
+    background: var(--accent);
+    vertical-align: -0.12em;
+}
+
+.lyrics.plain .lyrics-line {
+    color: var(--text-2);
+    font-size: var(--t-md);
+    font-weight: 500;
+}
+
+/* Devices */
+.device-list {
+    display: flex;
+    flex-direction: column;
+    gap: 0.4rem;
+}
+
+.device-row {
+    display: flex;
+    align-items: center;
+    gap: var(--s-3);
+    padding: 0.75rem 0.8rem;
+    border-radius: var(--r-md);
+    background: var(--surface-1);
+    border: 1px solid var(--stroke-1);
+    text-align: left;
+    width: 100%;
+}
+
+.device-row.active {
+    border-color: var(--accent-dim);
+    background: var(--surface-2);
+}
+
+.device-row.active .ic { color: var(--accent); }
+
+.device-row .ic { color: var(--text-2); }
+
+.device-meta {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+}
+
+.device-meta .t { font-size: var(--t-md); font-weight: 600; }
+.device-meta .a { font-size: var(--t-xs); color: var(--text-2); }
+
+/* ══════════════════════════════════════════════════════════════════════════
+   Immersive mode
+   ══════════════════════════════════════════════════════════════════════════ */
+
+.app.immersive .np {
+    grid-template-columns: minmax(0, 1fr);
+}
+
+.app.immersive .np-panel {
+    display: none;
+}
+
+.app.immersive .np-stage {
+    background: transparent;
+    border-color: transparent;
+    box-shadow: none;
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+}
+
+.app.immersive .np-player {
+    max-width: 42rem;
+}
+
+.app.immersive .art-frame {
+    width: min(28rem, 52vh);
+}
+
+.app.immersive .track-title { font-size: var(--t-3xl); }
+.app.immersive .track-artist { font-size: var(--t-xl); }
+.app.immersive .lyric-cue { font-size: var(--t-xl); min-height: 2rem; }
+.app.immersive .aux-row { display: none; }

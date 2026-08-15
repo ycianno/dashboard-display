@@ -1,53 +1,115 @@
 # 🖥️ Dashboard Display
 
-A minimal, beautiful always-on dashboard built for repurposing old tablets and laptops (like a Surface Pro) as a dedicated Spotify + clock + weather display.
+An always-on wall dashboard for repurposed hardware — built for a Surface Pro running
+Edge in kiosk mode. Three swipeable pages: an at-a-glance **Overview**, a full
+**Spotify** player, and live **Infrastructure** monitoring for a homelab.
 
-**No frameworks. No build step. Just HTML, CSS, and vanilla JS.**
+**No frameworks. No build step. Vanilla ES modules, CSS and a small Node server.**
 
-![Dashboard Preview](docs/preview.png)
+## Pages
+
+Swipe left/right, tap the pager in the dock, or press `←` / `→` / `1` `2` `3`.
+
+| Page | What's on it |
+|---|---|
+| **Overview** | Hero clock, daylight progress, 12-hour + 4-day forecast, now-playing card, infrastructure health summary |
+| **Music** | Album art, synced lyrics, queue, device switching, seek, volume — plus an immersive full-screen mode |
+| **Servers** | Proxmox nodes and guests, Netdata agents, storage pools, HTTP service checks, alerts |
+
+Whichever page you're on, a mini player in the dock keeps play/pause and skip
+one tap away. After 3 minutes without a touch the display drifts back to the
+default page.
 
 ## Features
 
-- 🎵 **Spotify Now Playing** — Live album art, track name, artist, and progress bar
-- 🎛️ **Playback Controls** — Play, pause, skip, previous, shuffle, and repeat (touch-friendly)
-- 📋 **Up Next Queue** — Shows the next 3 tracks in your Spotify queue
-- 🕐 **Clock** — 12-hour digital clock with seconds and AM/PM
-- 🌤️ **Weather** — Current temperature and conditions (via OpenWeatherMap)
-- 🌑 **Always-On Optimized** — Dark theme, no harsh whites, subtle animations to minimize burn-in
-- 📱 **Touch-Friendly** — Large buttons designed for touchscreens (works great with partially broken digitizers)
-- 🔒 **No Backend Required** — Uses Spotify PKCE auth flow, everything runs client-side
+### Music
+- **Now playing** — album art, track, artist, album, progress
+- **Full transport** — play/pause, skip, previous (restarts the track if you're >4s in), shuffle, repeat
+- **Seek** — drag anywhere on the progress bar
+- **Volume + device switching** — move playback to any Spotify Connect device from the display
+- **Synced lyrics** — LRC-timestamped lyrics from [LRCLIB](https://lrclib.net) that scroll and highlight in time, with a single-line cue under the track title
+- **Immersive mode** — tap the artwork to drop the chrome and go full-screen
+- **Dynamic colour** — the accent palette is extracted from the album art by hue histogram, so covers actually tint the UI instead of averaging to grey
+
+### Infrastructure
+- **Proxmox VE** — per-node CPU/memory/disk with sparklines, load average, kernel and CPU model; VM and LXC list with live usage; storage pool capacity
+- **Netdata** — CPU, RAM, disk, load and uptime from any number of agents
+- **HTTP checks** — up/down and latency for anything else (Home Assistant, Plex, a router…)
+- **Alerts** — threshold breaches roll up into the top bar and the Overview page
+
+### Display
+- **Weather** — current conditions, hourly and daily forecast from [Open-Meteo](https://open-meteo.com) (free, no API key)
+- **Burn-in protection** — the UI walks a small pixel diamond every 90 seconds
+- **Night dimming** — screen brightness drops on a schedule that wraps past midnight
+- **Touch-first** — large targets, press states, no hover dependencies, pointer hidden in kiosk mode
+- **Degrades gracefully** — a dead server, a missing config or no network shows a state, not a blank page
 
 ## Architecture
 
 ```
 dashboard-display/
-├── index.html          # Layout and structure
-├── styles.css          # Glassmorphism dark theme, responsive grid
-├── app.js              # Clock, weather, Spotify polling, queue, controls
-├── spotify.js          # Spotify Web API client with PKCE OAuth
-├── server.js           # Minimal Node.js static file server (32 lines)
-├── config.js           # Your API keys and settings (git-ignored)
-├── config.example.js   # Template for config.js
-└── .gitignore
+├── index.html               # Shell + SVG icon sprite
+├── css/
+│   ├── tokens.css           # Design tokens, fluid type scale
+│   ├── base.css             # Reset, ambient background, shared primitives
+│   ├── shell.css            # Top bar, view deck, dock
+│   ├── now-playing.css
+│   ├── infra.css
+│   └── overview.css
+├── js/
+│   ├── main.js              # Boot + wiring
+│   ├── config.js            # Defaults, merge, legacy-shape migration
+│   ├── store.js             # Observable stores (player / weather / infra)
+│   ├── router.js            # Paged views + swipe gestures
+│   ├── player.js            # Spotify polling, progress interpolation, actions
+│   ├── spotify-api.js       # Web API client with PKCE OAuth
+│   ├── lyrics.js            # LRCLIB fetch + LRC parsing
+│   ├── palette.js           # Album art → accent palette
+│   ├── weather.js           # Open-Meteo
+│   ├── infra-client.js      # Polls /api/infra
+│   ├── visualizer.js, clock.js, display.js, mini-player.js, util.js
+│   └── views/               # now-playing.js, overview.js, infra.js
+├── server.js                # Static server + /api/infra
+├── server/
+│   ├── infra.js             # Aggregation, history, alerts, caching
+│   ├── collectors.js        # Proxmox / Netdata / HTTP check collectors
+│   ├── http-client.js       # Promise HTTP(S) with per-request TLS control
+│   └── demo.js              # Synthetic snapshot for ?demo=1
+├── config.js                # Browser config (git-ignored)
+├── config.example.js
+├── server.config.js         # Server config + API tokens (git-ignored)
+└── server.config.example.js
 ```
 
-### How It Works
+### Why there's a server component
 
-1. `server.js` serves the static files on port 8080
-2. `spotify.js` handles OAuth PKCE authentication with Spotify (no backend/secret needed)
-3. `app.js` polls the Spotify Web API every 5 seconds for the currently playing track
-4. The browser runs in Edge Kiosk Mode (fullscreen, no URL bar, no tabs)
-5. On Windows startup, a batch script starts the server and opens Edge automatically
+The browser can't talk to Proxmox directly: it sits behind CORS, uses a
+self-signed certificate, and needs an API token that has no business being in
+client-side JavaScript. So `server.js` — already there to serve the static
+files — also exposes `GET /api/infra`, which polls your gear from Node,
+caches the result briefly, keeps a rolling history for the sparklines, and
+hands the browser one clean JSON snapshot.
+
+Spotify needs no backend: it uses the PKCE flow entirely in the browser.
+
+### Query-string flags
+
+Useful when you're debugging the display over SSH:
+
+| Flag | Effect |
+|---|---|
+| `?demo=1` | Synthetic Spotify + infrastructure data |
+| `?kiosk=0` | Bring back the mouse pointer |
+| `?view=infra` | Open straight onto a page |
 
 ## Setup
 
 ### Prerequisites
 
-- [Node.js](https://nodejs.org/) (for the static file server)
-- A [Spotify Premium](https://spotify.com/premium) account
-- *(Optional)* An [OpenWeatherMap](https://openweathermap.org/) free API key
+- [Node.js](https://nodejs.org/) 18+
+- A [Spotify Premium](https://spotify.com/premium) account (playback control requires Premium)
 
-### 1. Clone & Configure
+### 1. Configure the browser side
 
 ```bash
 git clone <your-repo-url>
@@ -55,68 +117,111 @@ cd dashboard-display
 cp config.example.js config.js
 ```
 
-Edit `config.js` with your credentials:
+Set your Spotify client ID and your location in `config.js`. Everything else
+has a sensible default — see the comments in `config.example.js`.
 
-```js
-const CONFIG = {
-  spotify: {
-    clientId: 'your-spotify-client-id',     // From Spotify Developer Dashboard
-    redirectUri: 'http://127.0.0.1:8080/',  // Must match Spotify app settings
-    scopes: 'user-read-currently-playing user-read-playback-state user-modify-playback-state'
-  },
-  weather: {
-    apiKey: 'your-openweathermap-key',      // Optional, leave blank to hide weather
-    city: 'San Juan',
-    units: 'imperial'                       // 'imperial' for °F, 'metric' for °C
-  },
-  dashboard: {
-    refreshInterval: 30000,
-    spotifyPollInterval: 5000
-  }
-};
+### 2. Create a Spotify app
+
+1. Open the [Spotify Developer Dashboard](https://developer.spotify.com/dashboard/)
+2. **Create App**
+3. Set the **Redirect URI** to exactly `http://127.0.0.1:8080/` (trailing slash included)
+4. Tick **Web API**
+5. Copy the **Client ID** into `config.js`
+
+### 3. Configure your servers (optional)
+
+```bash
+cp server.config.example.js server.config.js
 ```
 
-### 2. Create a Spotify App
+For Proxmox, create a token under **Datacenter → Permissions → API Tokens**.
+Either untick *Privilege Separation* or grant the token `PVEAuditor` on `/`.
+Then fill in `host`, `tokenId` and `tokenSecret`.
 
-1. Go to the [Spotify Developer Dashboard](https://developer.spotify.com/dashboard/)
-2. Click **Create App**
-3. Set **Redirect URI** to exactly: `http://127.0.0.1:8080/` (including trailing slash)
-4. Check **Web API** under APIs used
-5. Copy the **Client ID** into your `config.js`
+Netdata agents need nothing beyond their URL. HTTP checks take a name and a URL.
 
-### 3. Run
+Skip this entirely and the Servers page shows setup instructions instead.
+
+### 4. Run
 
 ```bash
 node server.js
 ```
 
-Open `http://127.0.0.1:8080/` in your browser and click **Connect Spotify**.
+Open `http://127.0.0.1:8080/` and click **Connect Spotify**.
 
-## Kiosk Mode (Dedicated Display)
+## Spotify API scopes
 
-To run this as a full-screen always-on display on Windows:
+| Scope | Used for |
+|---|---|
+| `user-read-currently-playing` | Current track, artwork, progress |
+| `user-read-playback-state` | Play state, shuffle, repeat, volume, devices |
+| `user-modify-playback-state` | Play, pause, skip, seek, volume, shuffle, repeat, transfer |
 
-### Edge Kiosk Mode
+PKCE means no client secret. Tokens live in `localStorage` and refresh
+automatically; changing the scope list forces a clean re-auth on next load.
 
-```cmd
-msedge.exe --kiosk http://127.0.0.1:8080/ --edge-kiosk-type=fullscreen --no-first-run --no-default-browser-check --disable-session-crashed-bubble
+## Kiosk mode
+
+### Don't use `--kiosk`
+
+Edge's `--kiosk` mode always runs **InPrivate**, which wipes `localStorage` when
+the session ends — and that's where the Spotify refresh token lives. With
+`--kiosk` you have to reconnect Spotify after every reboot.
+
+Use `--app` with a dedicated profile instead, then enter fullscreen once the
+page has painted. `start-kiosk.vbs` does exactly that, resolving every path at
+runtime so it works for any user without editing:
+
+```vbs
+home    = sh.ExpandEnvironmentStrings("%USERPROFILE%")
+profile = home & "\.dashboard-edge-profile"
+opts = " --app=http://127.0.0.1:8080/ --start-fullscreen" _
+     & " --user-data-dir=""" & profile & """" _
+     & " --no-first-run --no-default-browser-check" _
+     & " --disable-session-crashed-bubble --noerrdialogs"
+sh.Run """" & edge & """" & opts, 1, False
+sh.Run "powershell -NoProfile -ExecutionPolicy Bypass -File """ & home & "\dashboard-display\fullscreen.ps1""", 0, True
 ```
 
-### Auto-Start on Boot
+`fullscreen.ps1` waits for the window, lets the page settle, then sends one
+`F11`. The wait matters: toggling fullscreen mid-load leaves Chromium's newly
+exposed region unpainted. `--start-fullscreen` alone is not enough — the
+Windows taskbar still draws on top of the window. And send `F11` exactly once:
+`GetWindowRect` already reports full height before real fullscreen is active,
+so it can't be used to decide whether the toggle is needed.
 
-Create `launch-dashboard.bat` in the Windows Startup folder (`Win+R` → `shell:startup`):
+> A screen capture of the display taken with GDI (`CopyFromScreen`) will show
+> the lower portion blank while Edge is in true fullscreen. That's a capture
+> limitation — Chromium presents fullscreen through DirectComposition — not a
+> rendering fault. Add `--disable-direct-composition` temporarily if you need a
+> screenshot that reflects what's on screen.
 
-```bat
-@echo off
-cd /d C:\Path\To\dashboard-display
-start "DashboardServer" /min "C:\Program Files\nodejs\node.exe" server.js
-timeout /t 5 /nobreak > nul
-start msedge.exe --kiosk http://127.0.0.1:8080/ --edge-kiosk-type=fullscreen --no-first-run --no-default-browser-check --disable-session-crashed-bubble
-```
+### Auto-start on boot
 
-### Prevent Sleep & Lock Screen
+Two scheduled tasks, both **At logon**, running as your user with
+**Run only when user is logged on** (InteractiveToken):
 
-Run these commands once (as admin) to keep the display always on:
+| Task | Action |
+|---|---|
+| `DashboardServer` | `wscript.exe %USERPROFILE%\dashboard-display\start-hidden.vbs` |
+| `LaunchEdge` | `wscript.exe %USERPROFILE%\dashboard-display\start-kiosk.vbs` |
+
+`start-hidden.vbs` launches `node server.js` through `wscript` so no console
+window appears on the display.
+
+> `schtasks /change /tr ...` will demand the account password even for an
+> InteractiveToken task. Use PowerShell instead — it doesn't:
+> ```powershell
+> $a = New-ScheduledTaskAction -Execute "wscript.exe" -Argument "$env:USERPROFILE\dashboard-display\start-hidden.vbs"
+> Set-ScheduledTask -TaskName "DashboardServer" -Action $a
+> ```
+
+> Set `host: '127.0.0.1'` in `server.config.js`. Binding `0.0.0.0` makes
+> Windows Firewall pop an "allow this app" dialog **over the dashboard** on
+> every start, and the kiosk browser is on the same machine anyway.
+
+### Keep the screen on
 
 ```cmd
 powercfg /change monitor-timeout-ac 0
@@ -126,33 +231,32 @@ powercfg /SETACVALUEINDEX SCHEME_CURRENT SUB_NONE CONSOLELOCK 0
 powercfg /SETACTIVE SCHEME_CURRENT
 ```
 
-### Auto-Login (Optional)
+### Auto-login (optional)
 
-`Win+R` → `netplwiz` → Uncheck "Users must enter a user name and password" → Apply.
+`Win+R` → `netplwiz` → untick "Users must enter a user name and password" → Apply.
 
-## Spotify API Scopes
+## Remote management
 
-| Scope | Used For |
-|---|---|
-| `user-read-currently-playing` | Show current track, album art, progress |
-| `user-read-playback-state` | Detect play/pause state, shuffle, repeat |
-| `user-modify-playback-state` | Play, pause, skip, previous, shuffle, repeat controls |
-
-The app uses the **PKCE authorization flow**, which means no client secret is needed and everything runs client-side in the browser. Tokens are stored in `localStorage` and automatically refresh when expired.
-
-## Remote Management via SSH
-
-If the display device is on your network (e.g., via Tailscale), you can manage it remotely:
+If the display is reachable on your network (e.g. via Tailscale):
 
 ```bash
 # Deploy updated files
-scp -i ~/.ssh/your_key index.html styles.css app.js user@device-ip:C:/path/to/dashboard-display/
+scp -i ~/.ssh/your_key -r index.html css js server server.js user@device-ip:C:/path/to/dashboard-display/
 
-# Restart the server
+# Restart
 ssh user@device-ip "taskkill /F /IM node.exe & taskkill /F /IM msedge.exe"
 ssh user@device-ip "powershell Start-Process 'node.exe' -ArgumentList 'server.js' -WorkingDirectory 'C:\path\to\dashboard-display' -WindowStyle Hidden"
 ssh user@device-ip "schtasks /run /tn LaunchEdge"
 ```
+
+Assets are served with `Cache-Control: no-cache`, so a redeploy takes effect on
+reload without needing devtools on the kiosk.
+
+## Network exposure
+
+`server.config.js` sets `host`. The default `0.0.0.0` makes the dashboard —
+and `/api/infra`, which reports your infrastructure — reachable from your LAN.
+Set it to `127.0.0.1` to keep it on the display machine only.
 
 ## License
 

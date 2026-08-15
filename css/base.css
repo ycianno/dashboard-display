@@ -1,0 +1,369 @@
+/* ==========================================================================
+   Reset, ambient background, shared primitives
+   ========================================================================== */
+
+*,
+*::before,
+*::after {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+html,
+body {
+    height: 100%;
+    overflow: hidden;
+    background: var(--bg-deep);
+}
+
+body {
+    font-family: var(--font-sans);
+    color: var(--text-1);
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+    user-select: none;
+    -webkit-user-select: none;
+    -webkit-tap-highlight-color: transparent;
+    /* Horizontal paging is handled by the router; the browser only owns
+       vertical scrolling inside panels. */
+    overscroll-behavior: none;
+}
+
+button {
+    font: inherit;
+    color: inherit;
+    background: none;
+    border: none;
+    -webkit-tap-highlight-color: transparent;
+}
+
+img {
+    display: block;
+    max-width: 100%;
+}
+
+/* Class-level `display` rules out-specify the UA's [hidden] rule, so state
+   panels stayed visible when hidden was set. */
+[hidden] {
+    display: none !important;
+}
+
+/* Kiosk mode hides the pointer entirely. It's a class rather than a blanket
+   `cursor: none !important` so the same build stays usable on a desktop. */
+body.kiosk,
+body.kiosk * {
+    cursor: none !important;
+}
+
+/* ==========================================================================
+   Ambient background stack
+   ========================================================================== */
+
+.backdrop {
+    position: fixed;
+    inset: 0;
+    z-index: -5;
+    background:
+        radial-gradient(120% 90% at 50% -10%, #101a33 0%, #070c18 45%, var(--bg-deep) 100%);
+}
+
+/* Blurred album artwork bleeding behind everything — the single biggest
+   upgrade to how "alive" the display feels. */
+.backdrop-art {
+    position: fixed;
+    inset: -12%;
+    z-index: -4;
+    background-size: cover;
+    background-position: center;
+    filter: blur(80px) saturate(180%) brightness(0.55);
+    opacity: 0;
+    transform: scale(1.15);
+    transition: opacity 1.4s var(--ease-out), background-image 0s;
+}
+
+.backdrop-art.visible {
+    opacity: 0.5;
+}
+
+.orb {
+    position: fixed;
+    border-radius: 50%;
+    filter: blur(90px);
+    opacity: 0.16;
+    z-index: -3;
+    pointer-events: none;
+    transition: background var(--dur-slow) var(--ease-out);
+    will-change: transform;
+}
+
+.orb-a {
+    width: 34vw;
+    height: 34vw;
+    background: var(--accent);
+    top: -6vh;
+    left: 6vw;
+    animation: driftA 34s var(--ease-in-out) infinite alternate;
+}
+
+.orb-b {
+    width: 28vw;
+    height: 28vw;
+    background: #3b6ef6;
+    bottom: -8vh;
+    right: 4vw;
+    animation: driftB 41s var(--ease-in-out) infinite alternate;
+}
+
+/* Fine grain over the whole screen. Kills gradient banding on cheap panels
+   and adds a little texture that reads as intentional. */
+.grain {
+    position: fixed;
+    inset: 0;
+    z-index: 9998;
+    pointer-events: none;
+    opacity: 0.32;
+    mix-blend-mode: overlay;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='3'/%3E%3C/filter%3E%3Crect width='160' height='160' filter='url(%23n)' opacity='0.42'/%3E%3C/svg%3E");
+}
+
+/* Night dimming + burn-in drift ride on a single wrapper so nothing else has
+   to know about them. */
+.app {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    height: 100vh;
+    width: 100vw;
+    padding: var(--gutter);
+    gap: var(--gutter);
+    filter: brightness(var(--screen-dim));
+    transform: translate3d(var(--drift-x), var(--drift-y), 0);
+    transition: filter 3s linear, transform 4s var(--ease-in-out);
+}
+
+/* ==========================================================================
+   Shared primitives
+   ========================================================================== */
+
+.card {
+    background: var(--card-bg);
+    backdrop-filter: blur(34px) saturate(140%);
+    -webkit-backdrop-filter: blur(34px) saturate(140%);
+    border: 1px solid var(--stroke-1);
+    border-radius: var(--r-lg);
+    box-shadow: var(--card-shadow), var(--card-highlight);
+}
+
+.eyebrow {
+    font-size: var(--t-xs);
+    font-weight: 700;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--text-3);
+}
+
+.ic {
+    width: 1.5rem;
+    height: 1.5rem;
+    fill: currentColor;
+    flex-shrink: 0;
+}
+
+.ic-sm {
+    width: 1.15rem;
+    height: 1.15rem;
+}
+
+.ic-lg {
+    width: 2rem;
+    height: 2rem;
+}
+
+.tnum {
+    font-variant-numeric: tabular-nums;
+}
+
+.truncate {
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+/* Touch targets. Everything interactive gets a press state instead of a hover
+   state — the display has no pointer. */
+.pressable {
+    transition: transform var(--dur-fast) var(--ease-out),
+                background var(--dur-fast) var(--ease-out),
+                border-color var(--dur-fast) var(--ease-out);
+}
+
+.pressable:active {
+    transform: scale(0.94);
+}
+
+.chip {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--s-2);
+    padding: 0.45rem 0.8rem;
+    border-radius: var(--r-pill);
+    background: var(--surface-1);
+    border: 1px solid var(--stroke-1);
+    font-size: var(--t-sm);
+    font-weight: 600;
+    color: var(--text-2);
+}
+
+.dot {
+    width: 0.5rem;
+    height: 0.5rem;
+    border-radius: 50%;
+    background: var(--idle);
+    flex-shrink: 0;
+}
+
+.dot.ok { background: var(--ok); box-shadow: 0 0 0.6rem var(--ok); }
+.dot.warn { background: var(--warn); box-shadow: 0 0 0.6rem var(--warn); }
+.dot.crit { background: var(--crit); box-shadow: 0 0 0.6rem var(--crit); }
+.dot.live { animation: breathe 2.4s var(--ease-in-out) infinite; }
+
+/* Scrollable regions */
+.scroll {
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    scrollbar-width: thin;
+    scrollbar-color: rgba(255, 255, 255, 0.16) transparent;
+}
+
+.scroll::-webkit-scrollbar { width: 0.35rem; }
+.scroll::-webkit-scrollbar-track { background: transparent; }
+.scroll::-webkit-scrollbar-thumb {
+    background: rgba(255, 255, 255, 0.16);
+    border-radius: var(--r-pill);
+}
+
+/* Empty / error states */
+.placeholder {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: var(--s-3);
+    height: 100%;
+    min-height: 12rem;
+    text-align: center;
+    padding: var(--s-6);
+    color: var(--text-2);
+}
+
+.placeholder .ic {
+    width: 2.6rem;
+    height: 2.6rem;
+    color: var(--text-3);
+    opacity: 0.7;
+}
+
+.placeholder h3 {
+    font-family: var(--font-display);
+    font-size: var(--t-lg);
+    font-weight: 700;
+    color: var(--text-1);
+}
+
+.placeholder p {
+    font-size: var(--t-md);
+    max-width: 26rem;
+    line-height: 1.55;
+}
+
+.placeholder code {
+    font-family: var(--font-mono);
+    font-size: 0.9em;
+    background: var(--surface-sunken);
+    border: 1px solid var(--stroke-1);
+    border-radius: var(--r-xs);
+    padding: 0.1rem 0.35rem;
+    color: var(--accent-soft);
+}
+
+/* Meters — used by every metric in the infra + overview views */
+.meter {
+    height: 0.4rem;
+    border-radius: var(--r-pill);
+    background: var(--surface-sunken);
+    overflow: hidden;
+}
+
+.meter > i {
+    display: block;
+    height: 100%;
+    width: 0%;
+    border-radius: var(--r-pill);
+    background: var(--accent);
+    transition: width var(--dur-slow) var(--ease-out), background var(--dur) linear;
+}
+
+.meter.ok > i { background: var(--ok); }
+.meter.warn > i { background: var(--warn); }
+.meter.crit > i { background: var(--crit); }
+
+/* ==========================================================================
+   Animations
+   ========================================================================== */
+
+@keyframes driftA {
+    from { transform: translate3d(0, 0, 0) scale(1); }
+    to { transform: translate3d(7vw, 6vh, 0) scale(1.12); }
+}
+
+@keyframes driftB {
+    from { transform: translate3d(0, 0, 0) scale(1.08); }
+    to { transform: translate3d(-6vw, -7vh, 0) scale(1); }
+}
+
+@keyframes breathe {
+    0%, 100% { opacity: 1; transform: scale(1); }
+    50% { opacity: 0.45; transform: scale(1.35); }
+}
+
+@keyframes riseIn {
+    from { opacity: 0; transform: translateY(0.6rem); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes eqBounce {
+    0%, 100% { transform: scaleY(0.25); }
+    50% { transform: scaleY(1); }
+}
+
+@keyframes spin {
+    to { transform: rotate(360deg); }
+}
+
+@keyframes shimmer {
+    from { background-position: -180% 0; }
+    to { background-position: 180% 0; }
+}
+
+.skeleton {
+    background: linear-gradient(
+        90deg,
+        var(--surface-1) 25%,
+        var(--surface-3) 50%,
+        var(--surface-1) 75%
+    );
+    background-size: 220% 100%;
+    animation: shimmer 1.5s linear infinite;
+    border-radius: var(--r-sm);
+}
+
+@media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+        animation-duration: 0.01ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: 0.01ms !important;
+    }
+}

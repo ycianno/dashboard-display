@@ -1,0 +1,103 @@
+/* ==========================================================================
+   Design tokens
+   --------------------------------------------------------------------------
+   One scale for everything. Sizes are rem-based and the root font size is
+   fluid, so the whole dashboard scales with the panel instead of needing a
+   separate layout per device.
+   ========================================================================== */
+
+:root {
+    /* ── Surfaces ─────────────────────────────────────────────────────── */
+    --bg: #04060c;
+    --bg-deep: #010206;
+
+    --surface-1: rgba(255, 255, 255, 0.035);
+    --surface-2: rgba(255, 255, 255, 0.055);
+    --surface-3: rgba(255, 255, 255, 0.085);
+    --surface-sunken: rgba(0, 0, 0, 0.28);
+
+    --stroke-1: rgba(255, 255, 255, 0.075);
+    --stroke-2: rgba(255, 255, 255, 0.13);
+
+    /* Glass cards get a hairline top highlight; it's the single detail that
+       most separates "dark box" from "physical panel". */
+    --card-bg: rgba(12, 17, 30, 0.58);
+    --card-highlight: inset 0 1px 0 rgba(255, 255, 255, 0.07);
+    --card-shadow: 0 24px 60px -20px rgba(0, 0, 0, 0.75);
+
+    /* ── Text ─────────────────────────────────────────────────────────── */
+    --text-1: #f3f6fc;
+    --text-2: #9daabf;
+    --text-3: #5d6a82;
+
+    /* ── Accent (replaced at runtime from album artwork) ──────────────── */
+    --accent: #1db954;
+    --accent-soft: #4ade80;
+    --accent-glow: rgba(29, 185, 84, 0.32);
+    --accent-dim: rgba(29, 185, 84, 0.45);
+    --accent-ink: #04060c;
+
+    /* ── Status ───────────────────────────────────────────────────────── */
+    --ok: #34d399;
+    --warn: #fbbf24;
+    --crit: #f87171;
+    --idle: #64748b;
+
+    --ok-bg: rgba(52, 211, 153, 0.12);
+    --warn-bg: rgba(251, 191, 36, 0.13);
+    --crit-bg: rgba(248, 113, 113, 0.14);
+
+    /* ── Radii ────────────────────────────────────────────────────────── */
+    --r-xs: 0.5rem;
+    --r-sm: 0.75rem;
+    --r-md: 1.1rem;
+    --r-lg: 1.6rem;
+    --r-xl: 2rem;
+    --r-pill: 999px;
+
+    /* ── Spacing ──────────────────────────────────────────────────────── */
+    --s-1: 0.25rem;
+    --s-2: 0.5rem;
+    --s-3: 0.75rem;
+    --s-4: 1rem;
+    --s-5: 1.5rem;
+    --s-6: 2rem;
+    --s-7: 2.75rem;
+
+    /* ── Type ─────────────────────────────────────────────────────────── */
+    --font-sans: 'Inter', -apple-system, 'Segoe UI', BlinkMacSystemFont, sans-serif;
+    --font-display: 'Outfit', 'Inter', sans-serif;
+    --font-mono: 'JetBrains Mono', ui-monospace, 'Cascadia Mono', Consolas, monospace;
+
+    --t-xs: 0.72rem;
+    --t-sm: 0.82rem;
+    --t-md: 0.95rem;
+    --t-lg: 1.15rem;
+    --t-xl: 1.45rem;
+    --t-2xl: 2rem;
+    --t-3xl: 2.9rem;
+    --t-4xl: 4.2rem;
+
+    /* ── Motion ───────────────────────────────────────────────────────── */
+    --ease-out: cubic-bezier(0.22, 1, 0.36, 1);
+    --ease-in-out: cubic-bezier(0.65, 0, 0.35, 1);
+    --dur-fast: 160ms;
+    --dur: 280ms;
+    --dur-slow: 620ms;
+
+    /* ── Layout ───────────────────────────────────────────────────────── */
+    --topbar-h: 4.6rem;
+    --dock-h: 4.4rem;
+    --gutter: 1.35rem;
+
+    /* Driven by JS: night dimming and burn-in drift. */
+    --screen-dim: 1;
+    --drift-x: 0px;
+    --drift-y: 0px;
+}
+
+/* The whole UI scales from here. Tuned so a Surface Pro in Edge kiosk
+   (~1368 x 912 CSS px at 200% scaling) lands near 17px. */
+html {
+    font-size: clamp(13px, 0.72vw + 0.62vh, 21px);
+}
