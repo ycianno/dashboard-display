@@ -9,10 +9,19 @@ const AUTH_ENDPOINT = 'https://accounts.spotify.com/authorize';
 const KEY = {
   token: 'spotify_access_token',
   refresh: 'spotify_refresh_token',
+  refreshBackup: 'spotify_refresh_token_prev',
   verifier: 'spotify_code_verifier',
   expiry: 'spotify_token_expiry',
   scopes: 'spotify_scopes'
 };
+
+/**
+ * Scopes are compared as an unordered set: reordering or respacing the string
+ * in config.js used to read as a changed grant and sign the display out.
+ */
+function normalizeScopes(scopes) {
+  return String(scopes || '').trim().split(/\s+/).filter(Boolean).sort().join(' ');
+}
 
 export class SpotifyClient {
   constructor(config) {
@@ -20,8 +29,6 @@ export class SpotifyClient {
     this.redirectUri = config.redirectUri;
     this.scopes = config.scopes;
 
-    // Concurrent 401s used to each kick off their own refresh, racing to
-    // overwrite the token. All callers now await the same promise.
     this._refreshing = null;
 
     // Set when Spotify rate-limits us; every call short-circuits until it passes.
@@ -86,7 +93,7 @@ export class SpotifyClient {
       if (!response.ok) throw new Error(`Token exchange failed (${response.status})`);
 
       this._saveTokens(await response.json());
-      localStorage.setItem(KEY.scopes, this.scopes);
+      localStorage.setItem(KEY.scopes, normalizeScopes(this.scopes));
       localStorage.removeItem(KEY.verifier);
       window.history.replaceState({}, document.title, window.location.pathname);
       return true;
@@ -97,8 +104,15 @@ export class SpotifyClient {
   }
 
   _saveTokens(data) {
+    const previous = localStorage.getItem(KEY.refresh);
     localStorage.setItem(KEY.token, data.access_token);
-    if (data.refresh_token) localStorage.setItem(KEY.refresh, data.refresh_token);
+    if (data.refresh_token && data.refresh_token !== previous) {
+      // Keep the generation we're replacing. Spotify hands back a new refresh
+      // token on most exchanges without always retiring the old one, so when a
+      // refresh goes wrong we can't tell from here which generation is live.
+      if (previous) localStorage.setItem(KEY.refreshBackup, previous);
+      localStorage.setItem(KEY.refresh, data.refresh_token);
+    }
     localStorage.setItem(KEY.expiry, String(Date.now() + data.expires_in * 1000));
   }
 
@@ -107,62 +121,113 @@ export class SpotifyClient {
     if (reload) window.location.reload();
   }
 
+  /**
+   * Exchanges one refresh token.
+   * Resolves 'ok' | 'invalid' (that grant is dead) | 'transient' (try later).
+   */
+  async _exchangeRefresh(refreshToken) {
+    let response;
+    try {
+      response = await fetch(TOKEN_ENDPOINT, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        body: new URLSearchParams({
+          grant_type: 'refresh_token',
+          refresh_token: refreshToken,
+          client_id: this.clientId
+        })
+      });
+    } catch (err) {
+      console.warn('Token refresh failed:', err.message);
+      return 'transient';
+    }
+
+    if (response.ok) {
+      const data = await response.json();
+      if (!data.refresh_token) data.refresh_token = refreshToken;
+      this._saveTokens(data);
+      return 'ok';
+    }
+
+    // Only invalid_grant means the grant itself is gone. Spotify also answers
+    // 400 for malformed or misconfigured requests, and those must not wipe a
+    // working token on a display nobody is standing in front of.
+    if (response.status === 400) {
+      const body = await response.text().catch(() => '');
+      if (body.includes('invalid_grant')) return 'invalid';
+      console.warn('Token refresh rejected:', body || response.status);
+    }
+    return 'transient';
+  }
+
+  async _runRefresh() {
+    const current = localStorage.getItem(KEY.refresh);
+    const backup = localStorage.getItem(KEY.refreshBackup);
+    if (!current && !backup) return 'revoked';
+
+    if (current) {
+      const outcome = await this._exchangeRefresh(current);
+      if (outcome === 'ok') return 'ok';
+      if (outcome === 'transient') return 'transient';
+    }
+
+    // The stored token was rejected outright. If a rotation's response was
+    // lost in flight — the display slept, Wi-Fi dropped mid-request — the
+    // live grant may be the generation on either side of that write, so try
+    // the other one before giving up and making someone sign in again.
+    if (backup && backup !== current) {
+      const outcome = await this._exchangeRefresh(backup);
+      if (outcome === 'ok') return 'ok';
+      if (outcome === 'transient') return 'transient';
+    }
+
+    this.logout(false);
+    return 'revoked';
+  }
+
   _refresh() {
+    // Concurrent 401s used to each kick off their own refresh, racing to
+    // overwrite the token. All callers now await the same promise.
     if (this._refreshing) return this._refreshing;
 
-    const refreshToken = localStorage.getItem(KEY.refresh);
-    if (!refreshToken) return Promise.resolve(false);
-
-    this._refreshing = fetch(TOKEN_ENDPOINT, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-      body: new URLSearchParams({
-        grant_type: 'refresh_token',
-        refresh_token: refreshToken,
-        client_id: this.clientId
-      })
-    })
-      .then(async (response) => {
-        if (!response.ok) {
-          // A refresh token only fails permanently on 400 (revoked/invalid).
-          // Network blips and 5xx shouldn't sign the display out.
-          if (response.status === 400) this.logout(false);
-          return false;
-        }
-        const data = await response.json();
-        if (!data.refresh_token) data.refresh_token = refreshToken;
-        this._saveTokens(data);
-        return true;
-      })
-      .catch((err) => {
-        console.warn('Token refresh failed:', err.message);
-        return false;
-      })
-      .finally(() => {
-        this._refreshing = null;
-      });
-
+    this._refreshing = this._runRefresh().finally(() => {
+      this._refreshing = null;
+    });
     return this._refreshing;
   }
 
-  async getToken() {
+  /**
+   * Resolves { token } or { reason: 'unauthenticated' | 'transient' }. The
+   * distinction matters: a network blip must not put the sign-in screen up,
+   * because tapping it throws away a token that was never actually bad.
+   */
+  async _ensureToken() {
     const token = localStorage.getItem(KEY.token);
     const expiry = Number(localStorage.getItem(KEY.expiry) || 0);
-    if (!token) return null;
+    const hasGrant =
+      localStorage.getItem(KEY.refresh) || localStorage.getItem(KEY.refreshBackup);
 
-    if (Date.now() > expiry - 60000) {
-      const ok = await this._refresh();
-      return ok ? localStorage.getItem(KEY.token) : null;
-    }
-    return token;
+    if (!token && !hasGrant) return { reason: 'unauthenticated' };
+    if (token && Date.now() < expiry - 60000) return { token };
+
+    const outcome = await this._refresh();
+    if (outcome === 'ok') return { token: localStorage.getItem(KEY.token) };
+    return { reason: outcome === 'revoked' ? 'unauthenticated' : 'transient' };
+  }
+
+  async getToken() {
+    const { token } = await this._ensureToken();
+    return token || null;
   }
 
   isAuthenticated() {
-    const hasToken = Boolean(localStorage.getItem(KEY.refresh));
+    const hasToken = Boolean(
+      localStorage.getItem(KEY.refresh) || localStorage.getItem(KEY.refreshBackup)
+    );
     if (!hasToken) return false;
 
     // A scope change means the stored grant can't do what the app now needs.
-    if (localStorage.getItem(KEY.scopes) !== this.scopes) {
+    if (normalizeScopes(localStorage.getItem(KEY.scopes)) !== normalizeScopes(this.scopes)) {
       this.logout(false);
       return false;
     }
@@ -174,8 +239,12 @@ export class SpotifyClient {
   async _call(path, { method = 'GET', retry = true } = {}) {
     if (Date.now() < this._retryAfter) return { ok: false, rateLimited: true };
 
-    const token = await this.getToken();
-    if (!token) return { ok: false, unauthenticated: true };
+    const auth = await this._ensureToken();
+    if (!auth.token) {
+      if (auth.reason === 'transient') return { ok: false, offline: true, error: 'token refresh failed' };
+      return { ok: false, unauthenticated: true };
+    }
+    const token = auth.token;
 
     let response;
     try {
@@ -194,8 +263,9 @@ export class SpotifyClient {
     }
 
     if (response.status === 401 && retry) {
-      const refreshed = await this._refresh();
-      if (refreshed) return this._call(path, { method, retry: false });
+      const outcome = await this._refresh();
+      if (outcome === 'ok') return this._call(path, { method, retry: false });
+      if (outcome === 'transient') return { ok: false, offline: true, error: 'token refresh failed' };
       return { ok: false, unauthenticated: true };
     }
 
