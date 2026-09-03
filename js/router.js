@@ -42,9 +42,42 @@ export function createRouter({ deck, track, pager, views, initialId, onChange })
   });
 
   // ── Positioning ─────────────────────────────────────────────────────────
+
+  // While the deck is moving, the pages behind the glass cards are moving
+  // too, so every backdrop-filter has to re-blur a fresh backdrop on every
+  // frame — nothing can be cached. On the Surface's integrated GPU that is
+  // the whole cost of a page turn. `moving` lets the stylesheet drop the
+  // blur for the duration; see css/shell.css.
+  let settleTimer = null;
+
+  function setMoving(value) {
+    clearTimeout(settleTimer);
+    deck.classList.toggle('moving', value);
+  }
+
   function paint(animate) {
     track.classList.toggle('animate', animate);
     track.style.transform = `translate3d(${-index * width + delta}px, 0, 0)`;
+
+    if (animate) {
+      // transitionend is not guaranteed to fire — an interrupted or
+      // zero-length transition swallows it — so the timer is the authority
+      // and the event only ever arrives early.
+      setMoving(true);
+      settleTimer = setTimeout(() => deck.classList.remove('moving'), 460);
+    }
+  }
+
+  track.addEventListener('transitionend', (event) => {
+    if (event.target === track && event.propertyName === 'transform') setMoving(false);
+  });
+
+  // Only the page you're on and the ones you could reach with the next drag
+  // need to be rendered. The rest keep their box but skip layout and paint.
+  function markNeighbours() {
+    Array.from(track.children).forEach((node, i) => {
+      node.classList.toggle('far', Math.abs(i - index) > 1);
+    });
   }
 
   function syncPager() {
@@ -58,6 +91,7 @@ export function createRouter({ deck, track, pager, views, initialId, onChange })
     const changed = target !== index;
     index = target;
     delta = 0;
+    markNeighbours();
     paint(animate);
     syncPager();
     if (changed && onChange) onChange(views[index], index);
@@ -71,6 +105,7 @@ export function createRouter({ deck, track, pager, views, initialId, onChange })
 
     dragging = true;
     axis = null;
+    setMoving(true);
     pointerId = event.pointerId;
     startX = event.clientX;
     startY = event.clientY;
@@ -92,7 +127,12 @@ export function createRouter({ deck, track, pager, views, initialId, onChange })
         // Take ownership so the page under the finger stops receiving clicks.
         deck.setPointerCapture(pointerId);
       } else {
+        // This gesture belongs to the browser now. `dragging` goes false here,
+        // which means the pointerup that follows returns at its own guard
+        // without ever reaching setMoving — so the deck has to be let go of
+        // right here, or the blur stays suspended until the next page turn.
         dragging = false;
+        setMoving(false);
         return;
       }
     }
@@ -110,6 +150,7 @@ export function createRouter({ deck, track, pager, views, initialId, onChange })
 
     if (axis !== 'x') {
       delta = 0;
+      setMoving(false);
       return;
     }
 
@@ -149,6 +190,7 @@ export function createRouter({ deck, track, pager, views, initialId, onChange })
     paint(false);
   });
 
+  markNeighbours();
   paint(false);
   syncPager();
 

@@ -24,6 +24,8 @@
 
     /* Warm surfaces — the same cards, moved from blue-black to ember-black */
     --forge-card: rgba(26, 17, 10, 0.62);
+    /* Matches --card-bg-solid's job: the opaque tone used mid-page-turn. */
+    --card-bg-solid: rgba(22, 14, 8, 0.94);
     --forge-sunken: rgba(0, 0, 0, 0.42);
     --forge-stroke: rgba(245, 158, 11, 0.15);
     --forge-stroke-2: rgba(245, 158, 11, 0.28);
@@ -32,6 +34,10 @@
 #view-forge .card {
     background: var(--forge-card);
     border-color: var(--forge-stroke);
+}
+
+.deck.moving #view-forge .card {
+    background: var(--card-bg-solid);
 }
 
 .fg {

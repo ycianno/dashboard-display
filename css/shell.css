@@ -159,6 +159,36 @@
     padding-inline: 1px;
 }
 
+/* ── Page-turn cost ──────────────────────────────────────────────────────────
+   A glass card is cheap while it sits still: the compositor blurs the
+   backdrop once and caches it. During a page turn the backdrop moves every
+   frame, so all 22 blurred elements re-blur at 60fps — which is most of a
+   Surface Pro's integrated GPU, and the reason a swipe stuttered.
+
+   So the blur is suspended for the length of the move. The cards keep a
+   slightly more opaque background while it is off, which is what stops the
+   swap from reading as a flash: what you lose is the blur of a background
+   that is sliding past too fast to look at anyway.
+   ────────────────────────────────────────────────────────────────────────── */
+
+.deck.moving .card,
+.deck.moving .ov-tile {
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+}
+
+.deck.moving .card,
+.deck.moving .ov-tile {
+    background: var(--card-bg-solid);
+}
+
+/* Pages more than one turn away keep their box but skip layout and paint.
+   The immediate neighbours stay live so a drag never reveals a blank page. */
+.view.far {
+    content-visibility: auto;
+    contain-intrinsic-size: auto 100%;
+}
+
 /* ── Bottom dock: mini player + page indicator ───────────────────────────── */
 
 .dock {
@@ -378,6 +408,7 @@
 
 .app.night {
     --card-bg: rgba(10, 12, 20, 0.7);
+    --card-bg-solid: rgba(9, 11, 18, 0.95);
 }
 
 /* ══════════════════════════════════════════════════════════════════════════

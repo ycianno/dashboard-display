@@ -22,6 +22,10 @@
     /* Glass cards get a hairline top highlight; it's the single detail that
        most separates "dark box" from "physical panel". */
     --card-bg: rgba(12, 17, 30, 0.58);
+    /* Stand-in for --card-bg while a page turn has the blur switched off.
+       Opaque enough that dropping the blur is not visible, close enough in
+       tone that switching back is not either. */
+    --card-bg-solid: rgba(11, 15, 26, 0.93);
     --card-highlight: inset 0 1px 0 rgba(255, 255, 255, 0.07);
     --card-shadow: 0 24px 60px -20px rgba(0, 0, 0, 0.75);
 
