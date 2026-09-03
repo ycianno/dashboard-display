@@ -1,9 +1,19 @@
 // ══════════════════════════════════════════════════════════════════════════
-// Overview view — clock, forecast, infrastructure health, now playing
+// Overview — the page the display sits on, and the index to the other four
+//
+// The top half is the glance: clock, daylight, forecast. It is read from
+// across the room and, on this panel, from dead glass — so nothing up there
+// is pressable.
+//
+// The bottom half is a jump tile per page. Each one carries enough of its
+// page to answer the question you would have swiped over to ask — how many
+// quests are left, what is playing, whether anything is on fire — and a tap
+// takes you there. That is the difference between a home page and a poster.
 // ══════════════════════════════════════════════════════════════════════════
 
-import { $, esc, icon, clamp, formatDuration } from '../util.js';
-import { weatherStore, infraStore, playerStore } from '../store.js';
+import { $, esc, icon, clamp } from '../util.js';
+import { CONFIG } from '../config.js';
+import { weatherStore, infraStore, playerStore, forgeStore } from '../store.js';
 
 function wxIcon(name, className = 'wx-icon') {
   return `<svg class="${className}" aria-hidden="true"><use href="#wx-${name}"></use></svg>`;
@@ -18,7 +28,7 @@ function clockTime(iso) {
   return `${hours}:${String(date.getMinutes()).padStart(2, '0')} ${suffix}`;
 }
 
-export function initOverview() {
+export function initOverview(context = {}) {
   const el = {
     time: $('#ov-time'),
     period: $('#ov-period'),
@@ -31,8 +41,8 @@ export function initOverview() {
     daylightMarker: $('#ov-daylight-marker'),
 
     wx: $('#ov-wx'),
-    np: $('#ov-np'),
-    health: $('#ov-health')
+    next: $('#ov-next'),
+    jump: $('#ov-jump')
   };
 
   function paintDaylight(sunrise, sunset) {
@@ -120,10 +130,246 @@ export function initOverview() {
       </div>`;
   });
 
-  // ── Now playing card ────────────────────────────────────────────────────
-  // playerStore ticks four times a second for lyric timing, so the card is
+  // ── What's next ─────────────────────────────────────────────────────────
+  function renderNext() {
+    const state = forgeStore.get();
+    const summary = state.summary;
+
+    if (!summary || !summary.today.total) {
+      el.next.innerHTML = '';
+      return;
+    }
+
+    const now = new Date();
+    const nowMinutes = now.getHours() * 60 + now.getMinutes();
+    const parse = (value) => {
+      if (!value) return null;
+      const [h, m] = String(value).split(':').map(Number);
+      return Number.isFinite(h) ? h * 60 + (m || 0) : null;
+    };
+
+    const open = summary.today.quests.filter((q) => !q.done);
+    if (!open.length) {
+      el.next.innerHTML = `
+        <span class="eyebrow">Today</span>
+        <div class="hero-next-body cleared">${icon('check')}<span>Day cleared</span></div>`;
+      return;
+    }
+
+    // The next thing still ahead; if everything left is already overdue, the
+    // most overdue one is what you should be looking at.
+    const ahead = open.find((q) => {
+      const at = parse(q.at);
+      return at === null || at >= nowMinutes;
+    });
+    const quest = ahead || open[0];
+    const late = !ahead;
+
+    el.next.innerHTML = `
+      <span class="eyebrow">${late ? 'Overdue' : 'Next up'}</span>
+      <div class="hero-next-body ${late ? 'late' : ''}" style="--tag:${esc(quest.color)}">
+        <span class="t truncate">${esc(quest.title)}</span>
+        <span class="m">
+          ${quest.at ? `<b>${esc(clockLabel(quest.at))}</b> · ` : ''}${esc(quest.attr)}
+          · ${open.length} left today
+        </span>
+      </div>`;
+  }
+
+  function clockLabel(value) {
+    const [h, m] = String(value).split(':').map(Number);
+    if (!Number.isFinite(h)) return '';
+    const suffix = h >= 12 ? 'PM' : 'AM';
+    const hour = h % 12 === 0 ? 12 : h % 12;
+    return `${hour}:${String(m || 0).padStart(2, '0')} ${suffix}`;
+  }
+
+  // ── Jump tiles ──────────────────────────────────────────────────────────
+  // One tile per other page, each summarising it. They are re-rendered from
+  // whichever store changed, so the tile is never more than a poll behind the
+  // page it points at.
+
+  // Only offer a page the config actually turned on — a tile that navigates
+  // nowhere is worse than no tile.
+  const enabled = new Set(CONFIG.dashboard.views || []);
+
+  function tile(id, body, { level = '' } = {}) {
+    return `
+      <button class="ov-tile pressable ${level}" data-view="${id}">
+        ${body}
+      </button>`;
+  }
+
+  function forgeTile() {
+    const state = forgeStore.get();
+
+    if (state.status === 'unconfigured') {
+      return tile('forge', `
+        <span class="eyebrow">Today</span>
+        <div class="ov-tile-quiet">${icon('forge')}<span>Connect The Forge</span></div>`);
+    }
+
+    if (!state.summary) {
+      const message = {
+        outdated: 'The Forge needs updating',
+        auth: 'Sync token rejected'
+      }[state.reason] || (state.status === 'loading' ? 'Reaching The Forge…' : 'Unreachable');
+
+      return tile('forge', `
+        <span class="eyebrow">Today</span>
+        <div class="ov-tile-quiet">${icon('forge')}<span>${esc(message)}</span></div>`,
+        { level: state.status === 'loading' ? '' : 'crit' });
+    }
+
+    const { today, profile, streak } = state.summary;
+    const left = today.total - today.done;
+
+    const upcoming = today.quests.filter((q) => !q.done).slice(0, 3);
+
+    return tile('forge', `
+      <span class="eyebrow">Today</span>
+      <div class="ov-tile-figure">
+        <span class="n tnum">${today.total ? left : '—'}</span>
+        <span class="k">${
+          !today.total
+            ? 'nothing scheduled'
+            : left
+              ? `of ${today.total} left`
+              : 'all clear'
+        }</span>
+      </div>
+      <div class="ov-tile-bar"><i style="width:${today.pct}%"></i></div>
+      <div class="ov-tile-list">
+        ${
+          upcoming.length
+            ? upcoming
+                .map(
+                  (q) => `
+            <span class="row" style="--tag:${esc(q.color)}">
+              <i></i>
+              <span class="when tnum">${q.at ? esc(clockLabel(q.at)) : '—'}</span>
+              <span class="what truncate">${esc(q.title)}</span>
+            </span>`
+                )
+                .join('')
+            : '<span class="row done">Everything ticked.</span>'
+        }
+      </div>
+      <div class="ov-tile-foot">
+        <span>${icon('forge', 'ic ic-sm')} Level ${profile.level} · ${esc(profile.rank.name)}</span>
+        <span>${icon('flame', 'ic ic-sm')} ${streak.day}d</span>
+      </div>`);
+  }
+
+  function musicTile() {
+    const state = playerStore.get();
+
+    if (state.status === 'unauthenticated') {
+      return tile('now-playing', `
+        <span class="eyebrow">Music</span>
+        <div class="ov-tile-quiet">${icon('spotify')}<span>Spotify not connected</span></div>`);
+    }
+
+    if (!state.track) {
+      return tile('now-playing', `
+        <span class="eyebrow">Music</span>
+        <div class="ov-tile-quiet">${icon('note')}<span>Nothing playing</span></div>`);
+    }
+
+    return tile('now-playing', `
+      <span class="eyebrow">Music</span>
+      <div class="ov-tile-np">
+        ${state.track.artUrl ? `<img src="${esc(state.track.artUrl)}" alt="">` : ''}
+        <span class="meta">
+          <span class="t truncate">${esc(state.track.name)}</span>
+          <span class="a truncate">${esc(state.track.artists.join(', '))}</span>
+        </span>
+      </div>
+      <div class="ov-tile-bar"><i id="ov-np-fill" style="width:0%"></i></div>
+      <div class="ov-tile-foot">
+        <span>${
+          state.isPlaying
+            ? '<span class="eq"><i></i><i></i><i></i></span> Playing'
+            : `${icon('pause', 'ic ic-sm')} Paused`
+        }</span>
+        ${state.device ? `<span class="truncate">${esc(state.device.name)}</span>` : ''}
+      </div>`);
+  }
+
+  function serversTile() {
+    const state = infraStore.get();
+
+    if (state.status === 'unconfigured') {
+      return tile('infra', `
+        <span class="eyebrow">Servers</span>
+        <div class="ov-tile-quiet">${icon('server')}<span>No servers configured</span></div>`);
+    }
+
+    if (!state.snapshot) {
+      return tile('infra', `
+        <span class="eyebrow">Servers</span>
+        <div class="ov-tile-quiet">${icon('server')}<span>Checking…</span></div>`);
+    }
+
+    const { summary } = state.snapshot;
+    const failing = summary.alerts.filter((a) => a.level === 'crit').length;
+    const level = summary.level === 'unknown' ? '' : summary.level;
+
+    return tile('infra', `
+      <span class="eyebrow">Servers</span>
+      <div class="ov-tile-figure">
+        <span class="n tnum">${summary.servicesUp}<span class="of">/${summary.servicesTotal}</span></span>
+        <span class="k">services up</span>
+      </div>
+      <div class="ov-tile-list">
+        ${
+          summary.alerts.length
+            ? summary.alerts
+                .slice(0, 3)
+                .map(
+                  (alert) => `
+            <span class="row alert ${esc(alert.level)}">
+              <i></i>
+              <span class="what truncate">${esc(alert.source)} · ${esc(alert.message)}</span>
+            </span>`
+                )
+                .join('')
+            : `<span class="row ok"><span class="dot ok"></span> All systems go</span>`
+        }
+      </div>
+      <div class="ov-tile-foot">
+        <span><span class="dot ${level || 'ok'}"></span> ${
+          failing
+            ? `${failing} issue${failing > 1 ? 's' : ''}`
+            : summary.alerts.length
+              ? `${summary.alerts.length} warning${summary.alerts.length > 1 ? 's' : ''}`
+              : 'Healthy'
+        }</span>
+        <span>${summary.hostsUp}/${summary.hostsTotal} hosts · ${summary.guestsRunning}/${summary.guestsTotal} guests</span>
+      </div>`, { level });
+  }
+
+  const BUILDERS = {
+    forge: forgeTile,
+    'now-playing': musicTile,
+    infra: serversTile
+  };
+
+  function renderJump() {
+    el.jump.innerHTML = Object.keys(BUILDERS)
+      .filter((id) => enabled.has(id))
+      .map((id) => BUILDERS[id]())
+      .join('');
+  }
+
+  el.jump.addEventListener('click', (event) => {
+    const button = event.target.closest('.ov-tile');
+    if (button && context.goToView) context.goToView(button.dataset.view);
+  });
+
+  // playerStore ticks four times a second for lyric timing, so the tiles are
   // only rebuilt when something structural changes; the progress bar is
-  // updated in place.
+  // moved in place.
   let lastNpKey = '';
 
   playerStore.subscribe((state) => {
@@ -136,113 +382,21 @@ export function initOverview() {
 
     if (key !== lastNpKey) {
       lastNpKey = key;
-      renderNowPlaying(state);
+      renderJump();
     }
 
     const fill = document.getElementById('ov-np-fill');
     if (fill && state.durationMs) {
       fill.style.width = `${clamp((state.progressMs / state.durationMs) * 100, 0, 100)}%`;
     }
-    const elapsed = document.getElementById('ov-np-elapsed');
-    if (elapsed) elapsed.textContent = formatDuration(state.progressMs);
   });
 
-  function renderNowPlaying(state) {
-    const head = '<span class="eyebrow">Now Playing</span>';
+  infraStore.subscribe(renderJump, { immediate: false });
+  forgeStore.subscribe(() => {
+    renderJump();
+    renderNext();
+  }, { immediate: false });
 
-    if (state.status === 'unauthenticated') {
-      el.np.innerHTML = `${head}<div class="placeholder">${icon('spotify')}<p>Spotify not connected</p></div>`;
-      return;
-    }
-
-    if (!state.track) {
-      el.np.innerHTML = `${head}<div class="placeholder">${icon('note')}<p>Nothing playing</p></div>`;
-      return;
-    }
-
-    el.np.innerHTML = `
-      ${head}
-      <div class="ov-np-body">
-        ${state.track.artUrl ? `<img class="ov-np-art" src="${esc(state.track.artUrl)}" alt="">` : ''}
-        <div class="ov-np-meta">
-          <span class="t truncate">${esc(state.track.name)}</span>
-          <span class="a truncate">${esc(state.track.artists.join(', '))}</span>
-          <span class="ov-np-state">
-            ${
-              state.isPlaying
-                ? '<span class="eq"><i></i><i></i><i></i></span> Playing'
-                : `${icon('pause', 'ic ic-sm')} Paused`
-            }
-            ${state.device ? `· ${esc(state.device.name)}` : ''}
-          </span>
-        </div>
-      </div>
-      <div class="ov-np-progress">
-        <span class="tnum" id="ov-np-elapsed">0:00</span>
-        <span class="bar"><i id="ov-np-fill"></i></span>
-        <span class="tnum">${formatDuration(state.durationMs)}</span>
-      </div>`;
-  }
-
-  // ── Infrastructure health card ──────────────────────────────────────────
-  infraStore.subscribe((state) => {
-    const head = `<span class="eyebrow">Infrastructure</span>`;
-
-    if (state.status === 'unconfigured') {
-      el.health.innerHTML = `${head}<div class="placeholder">${icon('server')}<p>No servers configured</p></div>`;
-      return;
-    }
-
-    if (state.status === 'loading' || !state.snapshot) {
-      el.health.innerHTML = `${head}<div class="placeholder">${icon('server')}<p>Checking…</p></div>`;
-      return;
-    }
-
-    const { summary } = state.snapshot;
-
-    const cards = [
-      {
-        k: 'Hosts',
-        v: `${summary.hostsUp}/${summary.hostsTotal}`,
-        level: summary.hostsUp === summary.hostsTotal ? 'ok' : 'crit'
-      },
-      { k: 'Guests', v: `${summary.guestsRunning}/${summary.guestsTotal}`, level: '' },
-      {
-        k: 'Services',
-        v: `${summary.servicesUp}/${summary.servicesTotal}`,
-        level: summary.servicesUp === summary.servicesTotal ? 'ok' : 'crit'
-      }
-    ];
-
-    el.health.innerHTML = `
-      ${head}
-      <div class="health-grid">
-        ${cards
-          .map(
-            (card) => `
-          <div class="health-stat ${card.level}">
-            <span class="v tnum">${card.v}</span>
-            <span class="k">${card.k}</span>
-          </div>`
-          )
-          .join('')}
-      </div>
-      <div class="health-alerts scroll">
-        ${
-          summary.alerts.length
-            ? summary.alerts
-                .slice(0, 6)
-                .map(
-                  (alert) => `
-              <div class="health-alert ${alert.level}">
-                <span class="dot ${alert.level}"></span>
-                <span class="src">${esc(alert.source)}</span>
-                <span class="msg truncate">${esc(alert.message)}</span>
-              </div>`
-                )
-                .join('')
-            : `<div class="health-clear">${icon('check', 'ic ic-sm')} Everything healthy</div>`
-        }
-      </div>`;
-  });
+  renderJump();
+  renderNext();
 }

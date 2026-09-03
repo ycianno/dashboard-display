@@ -2,18 +2,77 @@
    Overview view — the "glance from across the room" page
    ========================================================================== */
 
-/* Two columns rather than three: the earlier full-height clock column left a
-   large empty block under the time. */
 .ov {
-    display: grid;
-    grid-template-columns: minmax(0, 1fr) minmax(0, 1.22fr);
-    grid-template-rows: minmax(0, 1.05fr) minmax(0, 0.95fr);
-    grid-template-areas:
-        'clock wx'
-        'np    health';
-    gap: var(--gutter);
     height: 100%;
 }
+
+/* The glance is dense and the tiles are not, so this page tilts the split:
+   the forecast gets the extra room and the tiles stop being mostly air. The
+   tile row still begins well below the halfway line, so every control stays
+   inside the band this panel's digitizer answers on. */
+[data-touch-zone='bottom'] #view-overview .tz-split,
+[data-touch-zone='top'] #view-overview .tz-split {
+    grid-template-rows: minmax(0, 1.18fr) minmax(0, 0.82fr);
+}
+
+/* The glance. Two columns rather than three: the earlier full-height clock
+   column left a large empty block under the time. */
+.ov-glance {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1.22fr);
+    grid-template-areas: 'clock wx';
+    gap: var(--gutter);
+}
+
+/* ── What's next ─────────────────────────────────────────────────────────── */
+
+.hero-next {
+    display: flex;
+    flex-direction: column;
+    gap: var(--s-2);
+    margin-top: auto;
+    margin-bottom: var(--s-5);
+    min-width: 0;
+}
+
+.hero-next:empty { display: none; }
+
+.hero-next-body {
+    display: flex;
+    flex-direction: column;
+    gap: 0.15rem;
+    min-width: 0;
+    padding-left: var(--s-4);
+    border-left: 3px solid var(--tag, var(--accent));
+}
+
+.hero-next-body .t {
+    font-family: var(--font-display);
+    font-size: var(--t-xl);
+    font-weight: 700;
+    line-height: 1.15;
+}
+
+.hero-next-body .m {
+    font-size: var(--t-sm);
+    color: var(--text-2);
+}
+
+.hero-next-body .m b { color: var(--text-1); font-weight: 700; }
+
+.hero-next-body.late { border-left-color: var(--crit); }
+.hero-next-body.late .m b { color: var(--crit); }
+
+.hero-next-body.cleared {
+    flex-direction: row;
+    align-items: center;
+    gap: var(--s-3);
+    border-left-color: var(--ok);
+    font-size: var(--t-lg);
+    font-weight: 700;
+}
+
+.hero-next-body.cleared .ic { width: 1.5rem; height: 1.5rem; color: var(--ok); }
 
 /* ── Hero clock ──────────────────────────────────────────────────────────── */
 
@@ -299,175 +358,217 @@
 
 .wx-day .mm b { color: var(--text-1); }
 
-/* ── Now playing card ────────────────────────────────────────────────────── */
+/* ══════════════════════════════════════════════════════════════════════════
+   Jump tiles — the bottom half
 
-.ov-np {
-    grid-area: np;
+   One per other page. A tile is a button, not a card: it presses, it is sized
+   for a fingertip, and its stat is large enough to answer the question from
+   across the room without going there.
+   ══════════════════════════════════════════════════════════════════════════ */
+
+.ov-jump {
+    display: grid;
+    grid-auto-flow: column;
+    grid-auto-columns: minmax(0, 1fr);
+    gap: var(--gutter);
+    min-height: 0;
+}
+
+.ov-tile {
     display: flex;
     flex-direction: column;
+    /* Content is distributed down the tile rather than pinned to its ends —
+       the figure used to sit on the floor with a void above it. */
+    justify-content: space-between;
     gap: var(--s-3);
-    padding: var(--s-5);
-    min-height: 0;
-    overflow: hidden;
-}
-
-.ov-np-body {
-    display: flex;
-    align-items: center;
-    gap: var(--s-4);
-    flex: 1;
-    min-height: 0;
-}
-
-.ov-np-art {
-    width: 7rem;
-    height: 7rem;
-    border-radius: var(--r-md);
-    object-fit: cover;
-    flex-shrink: 0;
-    box-shadow: 0 0.7rem 1.6rem rgba(0, 0, 0, 0.5);
-}
-
-.ov-np-meta {
     min-width: 0;
+    padding: var(--s-5);
+    border-radius: var(--r-lg);
+    background: var(--card-bg);
+    backdrop-filter: blur(34px) saturate(140%);
+    -webkit-backdrop-filter: blur(34px) saturate(140%);
+    border: 1px solid var(--stroke-1);
+    box-shadow: var(--card-shadow), var(--card-highlight);
+    color: var(--text-1);
+    text-align: left;
+}
+
+.ov-tile:active { background: var(--surface-3); }
+
+.ov-tile.warn { border-color: rgba(251, 191, 36, 0.3); }
+.ov-tile.crit { border-color: rgba(248, 113, 113, 0.32); }
+
+/* The big number. Anything the tile exists to tell you goes here. */
+.ov-tile-figure {
     display: flex;
     flex-direction: column;
-    gap: 0.2rem;
+    gap: 0.1rem;
 }
 
-.ov-np-meta .t {
+.ov-tile-figure .n {
     font-family: var(--font-display);
-    font-size: var(--t-lg);
-    font-weight: 700;
-    line-height: 1.2;
+    font-size: var(--t-3xl);
+    font-weight: 800;
+    line-height: 1;
 }
 
-.ov-np-meta .a {
-    font-size: var(--t-md);
-    color: var(--text-2);
-}
-
-.ov-np-progress {
-    display: flex;
-    align-items: center;
-    gap: var(--s-3);
-    font-size: var(--t-xs);
-    font-weight: 600;
+.ov-tile-figure .n .of {
+    font-size: var(--t-xl);
     color: var(--text-3);
 }
 
-.ov-np-progress .bar {
+.ov-tile-figure .k {
+    font-size: var(--t-sm);
+    color: var(--text-2);
+}
+
+/* Nothing to report: an icon and a sentence, centred, no fake statistic. */
+.ov-tile-quiet {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: var(--s-2);
     flex: 1;
-    height: 0.25rem;
+    text-align: center;
+    font-size: var(--t-sm);
+    color: var(--text-2);
+}
+
+.ov-tile-quiet .ic {
+    width: 2.2rem;
+    height: 2.2rem;
+    color: var(--text-3);
+}
+
+.ov-tile-np {
+    display: flex;
+    align-items: center;
+    gap: var(--s-3);
+    min-width: 0;
+}
+
+.ov-tile-np img {
+    width: 3.4rem;
+    height: 3.4rem;
+    flex-shrink: 0;
+    border-radius: var(--r-sm);
+    object-fit: cover;
+}
+
+.ov-tile-np .meta {
+    display: flex;
+    flex-direction: column;
+    gap: 0.1rem;
+    min-width: 0;
+}
+
+.ov-tile-np .t {
+    font-family: var(--font-display);
+    font-size: var(--t-lg);
+    font-weight: 700;
+    line-height: 1.15;
+}
+
+.ov-tile-np .a {
+    font-size: var(--t-sm);
+    color: var(--text-2);
+}
+
+.ov-tile-bar {
+    position: relative;
+    height: 0.35rem;
     border-radius: var(--r-pill);
     background: var(--surface-sunken);
     overflow: hidden;
 }
 
-.ov-np-progress .bar > i {
-    display: block;
-    height: 100%;
-    width: 0%;
-    border-radius: var(--r-pill);
+.ov-tile-bar > i {
+    position: absolute;
+    inset: 0 auto 0 0;
+    border-radius: inherit;
     background: var(--accent);
-    transition: width 1s linear;
+    transition: width var(--dur) var(--ease-out);
 }
 
-.ov-np-state {
+/* A few lines of the page the tile points at — what is actually next, or
+   what is actually wrong. Without it a tile is one number and a lot of air. */
+.ov-tile-list {
     display: flex;
-    align-items: center;
-    gap: var(--s-2);
+    flex-direction: column;
+    gap: 0.3rem;
+    min-width: 0;
     font-size: var(--t-xs);
-    font-weight: 700;
-    color: var(--text-3);
-    text-transform: uppercase;
-    letter-spacing: 0.1em;
-    margin-top: 0.2rem;
+    color: var(--text-2);
 }
 
-/* ── Health card ─────────────────────────────────────────────────────────── */
-
-.ov-health {
-    grid-area: health;
-    display: flex;
-    flex-direction: column;
-    gap: var(--s-3);
-    padding: var(--s-5);
-    min-height: 0;
-    overflow: hidden;
-}
-
-.health-grid {
-    display: grid;
-    grid-template-columns: repeat(3, minmax(0, 1fr));
-    gap: var(--s-3);
-}
-
-.health-stat {
-    display: flex;
-    flex-direction: column;
-    gap: 0.1rem;
-    padding: var(--s-3);
-    border-radius: var(--r-sm);
-    background: var(--surface-1);
-    border: 1px solid var(--stroke-1);
-}
-
-.health-stat .v {
-    font-family: var(--font-display);
-    font-size: var(--t-xl);
-    font-weight: 700;
-    line-height: 1;
-}
-
-.health-stat .k {
-    font-size: 0.62rem;
-    font-weight: 700;
-    letter-spacing: 0.1em;
-    text-transform: uppercase;
-    color: var(--text-3);
-}
-
-.health-stat.ok .v { color: var(--ok); }
-.health-stat.warn .v { color: var(--warn); }
-.health-stat.crit .v { color: var(--crit); }
-
-.health-alerts {
-    display: flex;
-    flex-direction: column;
-    gap: 0.25rem;
-    flex: 1;
-    min-height: 0;
-}
-
-.health-alert {
+.ov-tile-list .row {
     display: flex;
     align-items: center;
     gap: var(--s-2);
-    padding: 0.4rem 0.6rem;
-    border-radius: var(--r-xs);
-    font-size: var(--t-sm);
-    background: var(--surface-1);
-}
-
-.health-alert .src {
-    font-weight: 700;
-    color: var(--text-1);
-}
-
-.health-alert .msg {
-    color: var(--text-2);
     min-width: 0;
 }
 
-.health-alert.crit .src { color: var(--crit); }
-.health-alert.warn .src { color: var(--warn); }
+.ov-tile-list .row > i {
+    width: 0.3rem;
+    height: 1.05rem;
+    flex-shrink: 0;
+    border-radius: var(--r-pill);
+    background: var(--tag, var(--text-3));
+}
 
-.health-clear {
+.ov-tile-list .when {
+    color: var(--text-3);
+    font-size: 0.68rem;
+    white-space: nowrap;
+}
+
+.ov-tile-list .what { min-width: 0; }
+
+.ov-tile-list .row.done,
+.ov-tile-list .row.ok { color: var(--text-3); }
+
+.ov-tile-list .row.alert.warn > i { background: var(--warn); }
+.ov-tile-list .row.alert.crit > i { background: var(--crit); }
+.ov-tile-list .row.alert.crit .what { color: var(--crit); }
+
+.ov-tile-foot {
     display: flex;
     align-items: center;
-    gap: var(--s-2);
-    font-size: var(--t-sm);
-    font-weight: 600;
-    color: var(--ok);
+    justify-content: space-between;
+    gap: var(--s-3);
+    min-width: 0;
+    font-size: var(--t-xs);
+    color: var(--text-3);
 }
+
+.ov-tile-foot > span {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    min-width: 0;
+}
+
+.ov-tile-foot .ic {
+    width: 0.95rem;
+    height: 0.95rem;
+    color: var(--accent);
+}
+
+/* The Today tile borrows The Forge's fire, so the home page and the page it
+   points at are recognisably the same thing. */
+.ov-tile[data-view='forge'] {
+    --forge-fire: #fbbf24;
+}
+
+.ov-tile[data-view='forge'] .ov-tile-figure .n,
+.ov-tile[data-view='forge'] .ov-tile-foot .ic {
+    color: var(--forge-fire);
+}
+
+.ov-tile[data-view='forge'] .ov-tile-bar > i {
+    background: linear-gradient(90deg, #f97316, var(--forge-fire));
+    box-shadow: 0 0 0.8rem rgba(249, 115, 22, 0.32);
+}
+
+.ov-tile[data-view='forge'] .ov-tile-quiet .ic { color: var(--forge-fire); opacity: 0.7; }

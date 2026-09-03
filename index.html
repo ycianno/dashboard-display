@@ -146,6 +146,7 @@
         <symbol id="i-forge" viewBox="0 0 24 24"><path d="M13.5 2l-1.2 5.4 4.2-1.1-5.9 8.4 1.1-5.1-4 1zM4 17h16v2H4zm2 3h12v1.6H6z"/></symbol>
         <symbol id="i-flame" viewBox="0 0 24 24"><path d="M12 2c.6 3.2-1.1 4.6-2.6 6C7.6 9.6 6 11.2 6 14a6 6 0 0012 0c0-3.4-2.2-5.2-3.6-7.2-.5 1.2-1.3 2-2.2 2.5.6-2.6.4-5.1-.2-7.3zm0 11.2c1.3.9 2 1.9 2 3a2 2 0 11-4 0c0-1.1.7-2.1 2-3z"/></symbol>
         <symbol id="i-trophy" viewBox="0 0 24 24"><path d="M6 3h12v2h3v3a4 4 0 01-3.6 4A6 6 0 0113 15.9V18h3v2H8v-2h3v-2.1A6 6 0 016.6 12 4 4 0 013 8V5h3V3zm0 4H5v1a2 2 0 001.2 1.8A8 8 0 016 7zm12 0a8 8 0 01-.2 2.8A2 2 0 0019 8V7h-1z"/></symbol>
+
     </defs>
 </svg>
 
@@ -199,33 +200,43 @@
 
             <!-- ─── OVERVIEW ─────────────────────────────────────────── -->
             <section class="view" id="view-overview">
-                <div class="ov">
-                    <div class="ov-clock card">
-                        <div class="hero-time">
-                            <span class="hh tnum" id="ov-time">12:00</span>
-                            <span class="ap" id="ov-period">PM</span>
+                <!-- Glance on top where the glass is dead; the jump tiles
+                     below, where it answers. See css/shell.css -> Touch zone. -->
+                <div class="ov tz-split">
+                    <div class="ov-glance tz-read">
+                        <div class="ov-clock card">
+                            <div class="hero-time">
+                                <span class="hh tnum" id="ov-time">12:00</span>
+                                <span class="ap" id="ov-period">PM</span>
+                            </div>
+                            <div class="hero-date" id="ov-date">&mdash;</div>
+                            <div class="hero-sub" id="ov-sub">&mdash;</div>
+
+                            <!-- What's next out of The Forge. Fills the middle
+                                 of the card and is the one thing worth reading
+                                 off a wall at a glance. -->
+                            <div class="hero-next" id="ov-next"></div>
+
+                            <div class="sun-row">
+                                <span class="sun-item">
+                                    <svg class="ic" aria-hidden="true"><use href="#i-sunrise"></use></svg>
+                                    <span id="ov-sunrise">&mdash;</span>
+                                </span>
+                                <span class="daylight">
+                                    <i id="ov-daylight-fill"></i>
+                                    <span class="marker" id="ov-daylight-marker"></span>
+                                </span>
+                                <span class="sun-item">
+                                    <span id="ov-sunset">&mdash;</span>
+                                    <svg class="ic" aria-hidden="true"><use href="#i-sunset"></use></svg>
+                                </span>
+                            </div>
                         </div>
-                        <div class="hero-date" id="ov-date">—</div>
-                        <div class="hero-sub" id="ov-sub">—</div>
-                        <div class="sun-row">
-                            <span class="sun-item">
-                                <svg class="ic" aria-hidden="true"><use href="#i-sunrise"></use></svg>
-                                <span id="ov-sunrise">—</span>
-                            </span>
-                            <span class="daylight">
-                                <i id="ov-daylight-fill"></i>
-                                <span class="marker" id="ov-daylight-marker"></span>
-                            </span>
-                            <span class="sun-item">
-                                <span id="ov-sunset">—</span>
-                                <svg class="ic" aria-hidden="true"><use href="#i-sunset"></use></svg>
-                            </span>
-                        </div>
+
+                        <div class="ov-wx card" id="ov-wx"></div>
                     </div>
 
-                    <div class="ov-wx card" id="ov-wx"></div>
-                    <div class="ov-np card" id="ov-np"></div>
-                    <div class="ov-health card" id="ov-health"></div>
+                    <div class="ov-jump tz-act" id="ov-jump"></div>
                 </div>
             </section>
 
@@ -347,6 +358,7 @@
                     </aside>
                 </div>
             </section>
+
 
             <!-- ─── TODAY (THE FORGE) ────────────────────────────────── -->
             <!-- Sheet on top where the glass is dead, quests below where it

@@ -2,8 +2,8 @@
 
 An always-on wall dashboard for repurposed hardware — built for a Surface Pro running
 Edge in kiosk mode. Four swipeable pages: an at-a-glance **Overview**, **Today**
-from a self-hosted habit tracker, a full
-**Spotify** player, and live **Infrastructure** monitoring for a homelab.
+from a self-hosted habit tracker, a full **Spotify** player, and live
+**Infrastructure** monitoring for a homelab.
 
 **No frameworks. No build step. Vanilla ES modules, CSS and a small Node server.**
 
@@ -14,7 +14,7 @@ key for the page in that position.
 
 | Page | What's on it |
 |---|---|
-| **Overview** | Hero clock, daylight progress, 12-hour + 4-day forecast, now-playing card, infrastructure health summary |
+| **Overview** | Hero clock, daylight progress, 12-hour + 4-day forecast — and a jump tile per page below it, each summarising that page and opening it on a tap |
 | **Today** | Level, rank, attributes, streak, the week's boss and today's quests from [The Forge](https://github.com/ycianno/the-forge) — tap a quest to complete it |
 | **Music** | Album art, synced lyrics, queue, device switching, seek, volume — plus an immersive full-screen mode |
 | **Servers** | Proxmox nodes and guests, Netdata agents, storage pools, HTTP service checks, alerts |
@@ -39,6 +39,11 @@ default page.
 - **Netdata** — CPU, RAM, disk, load and uptime from any number of agents
 - **HTTP checks** — up/down and latency for anything else (Home Assistant, Plex, a router…)
 - **Alerts** — threshold breaches roll up into the top bar and the Overview page
+
+### Overview
+- **A glance and an index** — the clock and forecast are read from across the room; underneath, one tile per page carrying enough of it to answer the question you would have swiped over to ask
+- **Quests left, what's playing, what's on fire** — the Today, Music and Servers tiles each show their page's headline number, and a tap goes there
+- **Only what's configured** — a tile appears for a page only if `dashboard.views` turned it on
 
 ### Today (The Forge)
 - **Dressed like the game** — The Forge is amber and ember on warm black, so this page is too. The palette is scoped to the view; every other page still takes its accent from the album art
@@ -70,7 +75,7 @@ dashboard-display/
 │   ├── shell.css            # Top bar, view deck, dock
 │   ├── now-playing.css
 │   ├── infra.css
-│   └── overview.css
+│   ├── overview.css         # Glance + jump tiles
 │   └── forge.css
 ├── js/
 │   ├── main.js              # Boot + wiring
