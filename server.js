@@ -5,6 +5,7 @@ const fs = require('fs');
 const path = require('path');
 
 const { getSnapshot } = require('./server/infra');
+const { getForge, setCheck } = require('./server/forge');
 const { buildDemoSnapshot } = require('./server/demo');
 
 const ROOT = __dirname;
@@ -41,6 +42,42 @@ const MIME = {
   '.woff': 'font/woff',
   '.woff2': 'font/woff2'
 };
+
+// Request bodies are small by design — every POST this server accepts is one
+// object naming one thing to do. The cap is what stops a stuck client from
+// growing a buffer here forever.
+const MAX_BODY_BYTES = 8 * 1024;
+
+function readJsonBody(req) {
+  return new Promise((resolve, reject) => {
+    const chunks = [];
+    let bytes = 0;
+    req.on('data', (chunk) => {
+      bytes += chunk.length;
+      if (bytes > MAX_BODY_BYTES) {
+        reject(new Error('Request body is too large.'));
+        req.destroy();
+        return;
+      }
+      chunks.push(chunk);
+    });
+    req.on('error', reject);
+    req.on('end', () => {
+      const raw = Buffer.concat(chunks).toString('utf8');
+      if (!raw) return resolve({});
+      try {
+        const parsed = JSON.parse(raw);
+        if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) {
+          reject(new Error('Request body must be a JSON object.'));
+          return;
+        }
+        resolve(parsed);
+      } catch (err) {
+        reject(new Error('Request body was not valid JSON.'));
+      }
+    });
+  });
+}
 
 function sendJson(res, status, payload) {
   const body = JSON.stringify(payload);
@@ -88,6 +125,38 @@ async function handleApi(req, res, url) {
       sendJson(res, 200, snapshot);
     } catch (err) {
       sendJson(res, 500, { configured: true, error: err.message, summary: { alerts: [], level: 'crit' } });
+    }
+    return true;
+  }
+
+  // ── The Forge ─────────────────────────────────────────────────────────
+  if (url.pathname === '/api/forge') {
+    const snapshot = await getForge(config, { force: url.searchParams.get('force') === '1' });
+    sendJson(res, 200, snapshot);
+    return true;
+  }
+
+  // Ticking a quest off from the wall. The week key and check id are echoed
+  // back from a summary the display was already showing, so this endpoint
+  // never has to know how The Forge builds an id.
+  if (url.pathname === '/api/forge/check') {
+    if (req.method !== 'POST') {
+      sendJson(res, 405, { error: 'POST only' });
+      return true;
+    }
+    try {
+      const body = await readJsonBody(req);
+      await setCheck(config, {
+        weekKey: body.weekKey,
+        checkId: body.checkId,
+        done: body.done
+      });
+      // Hand back the freshly-recomputed summary so the view can settle on
+      // real numbers instead of holding its optimistic guess until the next
+      // poll comes round.
+      sendJson(res, 200, await getForge(config, { force: true }));
+    } catch (err) {
+      sendJson(res, 400, { error: err.message });
     }
     return true;
   }
@@ -152,5 +221,6 @@ server.listen(PORT, HOST, () => {
   if (config.proxmox && config.proxmox.enabled) sources.push('Proxmox');
   if (config.netdata && config.netdata.enabled) sources.push(`Netdata (${(config.netdata.hosts || []).length})`);
   if (config.services && config.services.enabled) sources.push(`Checks (${(config.services.checks || []).length})`);
+  if (config.forge && config.forge.enabled) sources.push('The Forge');
   console.log(sources.length ? `Monitoring: ${sources.join(', ')}` : 'Monitoring: none configured');
 });

@@ -12,6 +12,7 @@ import { startClock } from './clock.js';
 import { startWeather } from './weather.js';
 import { startInfra } from './infra-client.js';
 import { startPlayer } from './player.js';
+import { startForge } from './forge-client.js';
 import { resolveViews } from './views/registry.js';
 import { initMiniPlayer } from './mini-player.js';
 import { resetPalette } from './palette.js';
@@ -179,6 +180,7 @@ function main() {
   startWeather();
   startInfra();
   startPlayer();
+  startForge();
 
   // ── Idle return ─────────────────────────────────────────────────────────
   createIdleReturn({

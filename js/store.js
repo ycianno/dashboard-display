@@ -1,8 +1,8 @@
 // ══════════════════════════════════════════════════════════════════════════
 // Minimal observable stores
 //
-// Three sources (player, weather, infra) each feed more than one view, so
-// they publish here instead of the views reaching for each other.
+// Each source feeds more than one view, so they publish here instead of the
+// views reaching for each other.
 // ══════════════════════════════════════════════════════════════════════════
 
 function createStore(initial) {
@@ -60,5 +60,19 @@ export const infraStore = createStore({
   status: 'loading', // loading | ready | unconfigured | error
   snapshot: null,
   error: null,
+  updatedAt: 0
+});
+
+export const forgeStore = createStore({
+  status: 'loading', // loading | ready | unconfigured | error
+  summary: null,
+  // Check ids with a write in flight. The view keeps showing its optimistic
+  // state for these instead of flickering back on the next poll.
+  pending: new Set(),
+  stale: false,
+  error: null,
+  // 'outdated' | 'auth' | 'unreachable' — set by the server so the views can
+  // say which of the three went wrong without parsing the message.
+  reason: null,
   updatedAt: 0
 });

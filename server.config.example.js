@@ -60,6 +60,23 @@ module.exports = {
     ]
   },
 
+  // The Forge (https://github.com/ycianno/the-forge) — the Today page.
+  //
+  // The token is a full-access credential: it can read and write everything in
+  // your Forge. It lives here, server-side, and is never served to the browser.
+  // Generate one in The Forge under Settings -> Sync, or:
+  //   curl -b cookies -X POST https://your-forge/api/sync/token
+  forge: {
+    enabled: false,
+    url: 'http://192.168.1.40:3007',
+    token: '',
+    // Self-signed certificate in front of it? Set this false.
+    verifyTls: true,
+    // The panel polls more often than this; the cache absorbs it.
+    cacheTtlMs: 5000
+  },
+
+
   // Thresholds that turn a metric amber/red and raise a dashboard alert.
   thresholds: {
     cpuWarn: 75,

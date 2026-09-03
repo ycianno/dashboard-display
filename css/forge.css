@@ -1,0 +1,732 @@
+/* ==========================================================================
+   Today — The Forge
+
+   The Forge is amber on warm black: fire, an anvil, XP in orange. Rendering
+   its data in the dashboard's cool blue-grey made the page read as a report
+   *about* the game instead of a part of it, which is the one thing a
+   gamified tracker cannot afford.
+
+   So this view carries its own palette. It is scoped to `#view-forge` on
+   purpose — every other page still takes its accent from the album art, and
+   nothing here leaks into them.
+
+   Layout is still the touch contract: the sheet is read (top, dead glass),
+   the agenda is pressed (bottom).
+   ========================================================================== */
+
+#view-forge {
+    /* Fire */
+    --fire-1: #fbbf24;
+    --fire-2: #f59e0b;
+    --fire-3: #f97316;
+    --fire-ink: #1a0f04;
+    --fire-glow: rgba(249, 115, 22, 0.34);
+
+    /* Warm surfaces — the same cards, moved from blue-black to ember-black */
+    --forge-card: rgba(26, 17, 10, 0.62);
+    --forge-sunken: rgba(0, 0, 0, 0.42);
+    --forge-stroke: rgba(245, 158, 11, 0.15);
+    --forge-stroke-2: rgba(245, 158, 11, 0.28);
+}
+
+#view-forge .card {
+    background: var(--forge-card);
+    border-color: var(--forge-stroke);
+}
+
+.fg {
+    height: 100%;
+}
+
+/* Four cards across, each full height. The previous layout stacked two short
+   cards against one tall one and left a third of the page empty; every card
+   here earns its width. */
+.fg-sheet {
+    display: grid;
+    grid-template-columns:
+        minmax(0, 1.05fr) minmax(0, 1.15fr) minmax(0, 1.15fr) minmax(0, 0.85fr);
+    grid-template-rows: minmax(0, 1fr);
+    gap: var(--gutter);
+}
+
+.fg-sheet.stale { opacity: 0.55; }
+
+/* Nothing to press: the sheet takes both rows of the split rather than
+   leaving an empty card sitting in the half you can reach. It has to stay a
+   grid item to inherit the row height. */
+.fg-sheet.solo { grid-row: 1 / -1; }
+.fg-sheet > .fg-setup { grid-column: 1 / -1; grid-row: 1 / -1; }
+
+/* ── Bars ────────────────────────────────────────────────────────────────── */
+
+.fg-bar {
+    position: relative;
+    flex: 0 0 0.55rem;
+    min-width: 4rem;
+    height: 0.55rem;
+    border-radius: var(--r-pill);
+    background: var(--forge-sunken);
+    overflow: hidden;
+}
+
+.fg-bar > i {
+    position: absolute;
+    inset: 0 auto 0 0;
+    border-radius: inherit;
+    background: var(--fire-2);
+    transition: width var(--dur) var(--ease-out);
+}
+
+/* The XP bar is the one thing on the page that should look hot. */
+.fg-bar.fire > i {
+    background: linear-gradient(90deg, var(--fire-3), var(--fire-1));
+    box-shadow: 0 0 0.9rem var(--fire-glow);
+}
+
+.fg-bar.thin { flex-basis: 0.3rem; height: 0.3rem; }
+.fg-bar.wide { flex-basis: 0.7rem; height: 0.7rem; }
+.fg-bar.attr > i { background: var(--tag); }
+.fg-bar.hp > i { background: linear-gradient(90deg, #ef4444, var(--fire-3)); }
+
+/* ── Character column ────────────────────────────────────────────────────── */
+
+.fg-char {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: var(--s-2);
+    padding: var(--s-5);
+    position: relative;
+    overflow: hidden;
+}
+
+/* An ember bloom behind the orb — the page's only piece of pure atmosphere. */
+.fg-char::before {
+    content: '';
+    position: absolute;
+    left: -5rem;
+    top: -5rem;
+    width: 17rem;
+    height: 17rem;
+    background: radial-gradient(circle, var(--fire-glow), transparent 62%);
+    opacity: 0.5;
+    pointer-events: none;
+}
+
+.fg-orb {
+    position: relative;
+    display: grid;
+    place-content: center;
+    justify-items: center;
+    width: 5.6rem;
+    height: 5.6rem;
+    margin-bottom: var(--s-2);
+    border-radius: 50%;
+    background:
+        radial-gradient(circle at 34% 26%, rgba(251, 191, 36, 0.5), transparent 66%),
+        rgba(0, 0, 0, 0.45);
+    border: 2px solid var(--fire-2);
+    box-shadow: 0 0 2.2rem -0.4rem var(--fire-glow), inset 0 0 1.4rem rgba(249, 115, 22, 0.24);
+}
+
+.fg-orb .lvl {
+    font-family: var(--font-display);
+    font-size: var(--t-2xl);
+    font-weight: 800;
+    line-height: 1;
+    color: var(--fire-1);
+    text-shadow: 0 0 1.2rem var(--fire-glow);
+}
+
+.fg-orb .cap {
+    font-size: 0.6rem;
+    font-weight: 800;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: var(--text-3);
+}
+
+.fg-rank {
+    position: relative;
+    font-family: var(--font-display);
+    font-size: var(--t-xl);
+    font-weight: 800;
+    line-height: 1.05;
+    letter-spacing: -0.01em;
+}
+
+.fg-rank .tier { color: var(--fire-2); font-size: var(--t-md); }
+
+/* Where this rank sits on the six-rung ladder. */
+.fg-pips {
+    position: relative;
+    display: flex;
+    gap: 0.3rem;
+}
+
+.fg-pips i {
+    width: 0.4rem;
+    height: 0.4rem;
+    border-radius: 50%;
+    background: var(--stroke-2);
+}
+
+.fg-pips i.on {
+    background: var(--fire-2);
+    box-shadow: 0 0 0.5rem var(--fire-glow);
+}
+
+.fg-xp {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+    gap: 0.3rem;
+    align-self: stretch;
+    margin-top: var(--s-2);
+}
+
+.fg-xp .to {
+    font-size: var(--t-xs);
+    font-weight: 700;
+    color: var(--fire-1);
+}
+
+/* Rung and chips travel together at the foot, so the column fills whether or
+   not the connected Forge is new enough to send `rank.next`. */
+.fg-char-foot {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    gap: var(--s-3);
+    align-self: stretch;
+    margin-top: auto;
+}
+
+.fg-rung {
+    display: flex;
+    flex-direction: column;
+    gap: 0.1rem;
+    padding-top: var(--s-3);
+    border-top: 1px solid var(--forge-stroke);
+}
+
+.fg-rung .name {
+    font-family: var(--font-display);
+    font-size: var(--t-lg);
+    font-weight: 700;
+}
+
+.fg-rung .away {
+    font-size: var(--t-xs);
+    color: var(--text-3);
+}
+
+.fg-chips {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.25rem var(--s-3);
+    padding-top: var(--s-3);
+    border-top: 1px solid var(--forge-stroke);
+}
+
+.fg-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    font-size: var(--t-xs);
+    color: var(--text-2);
+}
+
+.fg-chip b {
+    font-family: var(--font-display);
+    font-size: var(--t-md);
+    color: var(--text-1);
+}
+
+.fg-chip .ic { color: var(--fire-2); flex-shrink: 0; }
+
+/* ── The shape ───────────────────────────────────────────────────────────── */
+
+.fg-shape {
+    display: flex;
+    flex-direction: column;
+    gap: var(--s-2);
+    padding: var(--s-4) var(--s-3) var(--s-3);
+    min-width: 0;
+}
+
+.fg-shape-svg {
+    flex: 1;
+    width: 100%;
+    min-height: 0;
+    overflow: visible;
+}
+
+.fg-shape-svg .grid polygon,
+.fg-shape-svg .grid line {
+    stroke: rgba(245, 158, 11, 0.16);
+    stroke-width: 1;
+    fill: none;
+}
+
+.fg-shape-svg .outline {
+    fill: none;
+    stroke: var(--fire-1);
+    stroke-width: 2;
+    stroke-linejoin: round;
+}
+
+.fg-shape-svg .labels text {
+    font-family: var(--font-sans);
+    font-size: 11px;
+    font-weight: 800;
+    letter-spacing: 0.06em;
+}
+
+/* ── Attribute tag: coloured dot + the attribute's name, as in the app ───── */
+
+.fg-attr-tag {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    padding: 0.2rem 0.55rem;
+    border-radius: var(--r-pill);
+    background: color-mix(in srgb, var(--tag) 14%, transparent);
+    border: 1px solid color-mix(in srgb, var(--tag) 32%, transparent);
+    color: var(--tag);
+    font-size: 0.66rem;
+    font-weight: 800;
+    letter-spacing: 0.1em;
+    white-space: nowrap;
+}
+
+.fg-attr-tag i {
+    width: 0.36rem;
+    height: 0.36rem;
+    border-radius: 50%;
+    background: var(--tag);
+}
+
+/* ── Boss ────────────────────────────────────────────────────────────────── */
+
+.fg-boss {
+    display: flex;
+    flex-direction: column;
+    gap: var(--s-3);
+    padding: var(--s-5);
+    position: relative;
+    overflow: hidden;
+}
+
+.fg-boss::after {
+    content: '';
+    position: absolute;
+    inset: auto -30% -60% -30%;
+    height: 70%;
+    background: radial-gradient(60% 100% at 50% 100%, rgba(239, 68, 68, 0.16), transparent 70%);
+    pointer-events: none;
+}
+
+.fg-boss-head {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: var(--s-3);
+}
+
+.fg-boss-head .hp {
+    font-family: var(--font-display);
+    font-size: var(--t-lg);
+    font-weight: 800;
+    color: var(--fire-3);
+}
+
+.fg-boss-name {
+    font-family: var(--font-display);
+    font-size: var(--t-2xl);
+    font-weight: 800;
+    line-height: 1.1;
+    letter-spacing: -0.01em;
+    position: relative;
+}
+
+.fg-boss-note {
+    font-size: var(--t-sm);
+    color: var(--text-2);
+    line-height: 1.45;
+    position: relative;
+}
+
+.fg-boss-note b { color: var(--fire-1); font-weight: 800; }
+
+/* What the boss is soft against — the actionable half of the card, and what
+   turns "97% HP" into something you can do about it. */
+.fg-weak {
+    position: relative;
+    display: flex;
+    align-items: center;
+    gap: var(--s-3);
+}
+
+/* The taunt sits at the foot, in the boss's own voice. It is the one piece of
+   the game's writing that survives onto the wall, so it gets the room. */
+.fg-taunt {
+    position: relative;
+    margin-top: auto;
+    padding-top: var(--s-3);
+    border-top: 1px solid var(--forge-stroke);
+    font-size: var(--t-sm);
+    font-style: italic;
+    line-height: 1.45;
+    color: var(--text-3);
+}
+
+.fg-boss.down .fg-boss-head .hp { color: var(--ok); }
+.fg-boss.down .fg-bar.hp > i { background: var(--ok); }
+
+/* ── Cabinet ─────────────────────────────────────────────────────────────── */
+
+.fg-cabinet {
+    display: flex;
+    flex-direction: column;
+    gap: var(--s-3);
+    padding: var(--s-5) var(--s-4);
+    min-width: 0;
+}
+
+.fg-cab-head {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: var(--s-2);
+}
+
+.fg-cab-head .total {
+    font-family: var(--font-display);
+    font-size: var(--t-2xl);
+    font-weight: 800;
+    line-height: 1;
+    color: var(--fire-1);
+}
+
+.fg-grades {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: var(--s-2);
+}
+
+.fg-grade {
+    display: flex;
+    flex-direction: column;
+    gap: 0.1rem;
+    padding: var(--s-2) var(--s-3);
+    border-radius: var(--r-sm);
+    background: rgba(255, 255, 255, 0.028);
+    border: 1px solid var(--forge-stroke);
+    /* An empty grade is drawn, not hidden — the gaps in the cabinet are part
+       of what the cabinet is telling you. */
+    opacity: 0.42;
+}
+
+.fg-grade.has {
+    opacity: 1;
+    border-color: color-mix(in srgb, var(--g) 34%, transparent);
+    background: color-mix(in srgb, var(--g) 10%, transparent);
+}
+
+.fg-grade .n {
+    font-family: var(--font-display);
+    font-size: var(--t-lg);
+    font-weight: 800;
+    line-height: 1;
+    color: var(--g);
+}
+
+.fg-grade .k {
+    font-size: 0.62rem;
+    font-weight: 800;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--text-3);
+}
+
+.fg-insignias {
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+    font-size: var(--t-sm);
+    color: var(--text-2);
+}
+
+.fg-insignias .ic { color: var(--fire-2); }
+
+.fg-insignias b {
+    font-family: var(--font-display);
+    font-size: var(--t-lg);
+    color: var(--text-1);
+}
+
+.fg-records {
+    display: flex;
+    flex-direction: column;
+    gap: 0.3rem;
+    margin-top: auto;
+    padding-top: var(--s-3);
+    border-top: 1px solid var(--forge-stroke);
+}
+
+.fg-record {
+    font-size: var(--t-xs);
+    color: var(--text-3);
+    padding-left: var(--s-3);
+    border-left: 2px solid var(--forge-stroke-2);
+}
+
+/* ── Agenda: the half you can actually press ─────────────────────────────── */
+
+.fg-agenda {
+    display: flex;
+    flex-direction: column;
+    gap: var(--s-4);
+    padding: var(--s-5);
+    overflow: hidden;
+    border-color: var(--forge-stroke-2);
+}
+
+.fg-agenda-head {
+    display: flex;
+    align-items: center;
+    gap: var(--s-4);
+    flex-shrink: 0;
+}
+
+.fg-agenda-count {
+    display: flex;
+    align-items: baseline;
+    gap: 0.45rem;
+}
+
+.fg-agenda-count .n {
+    font-family: var(--font-display);
+    font-size: var(--t-2xl);
+    font-weight: 800;
+    line-height: 1;
+    color: var(--fire-1);
+}
+
+.fg-agenda-count .cap {
+    font-size: var(--t-sm);
+    color: var(--text-2);
+}
+
+.fg-agenda-head .fg-bar { flex: 1 1 auto; }
+
+.fg-agenda-pct {
+    font-family: var(--font-display);
+    font-size: var(--t-lg);
+    font-weight: 800;
+    color: var(--fire-1);
+}
+
+/* Two columns: a nine-quest day is about 38rem tall in one column and roughly
+   half that in two, which is the difference between scrolling the wall panel
+   and seeing your whole day from the doorway. */
+.fg-quests {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(21rem, 1fr));
+    /* Rows share whatever height is left rather than stacking at the top: on a
+       touch panel the leftover space is better spent on bigger targets than on
+       an empty strip under the last quest. Past `min`, the list scrolls. */
+    grid-auto-rows: minmax(4rem, 1fr);
+    align-content: stretch;
+    gap: var(--s-2);
+    /* Take the card's remaining height, or the rows have nothing to stretch
+       into and the list sits above an empty strip. */
+    flex: 1;
+    min-height: 0;
+    overflow-y: auto;
+    /* The router owns horizontal drags; this list keeps its own scroll. */
+    overscroll-behavior: contain;
+    scrollbar-width: thin;
+    scrollbar-color: rgba(245, 158, 11, 0.24) transparent;
+}
+
+.fg-quests::-webkit-scrollbar { width: 0.35rem; }
+.fg-quests::-webkit-scrollbar-track { background: transparent; }
+.fg-quests::-webkit-scrollbar-thumb {
+    background: rgba(245, 158, 11, 0.24);
+    border-radius: var(--r-pill);
+}
+
+/* A quest row. The columns match the app's: when, tick, what, which stat,
+   what it's worth. */
+.fg-quest {
+    position: relative;
+    display: grid;
+    grid-template-columns: 4.4rem 2.2rem minmax(0, 1fr) auto;
+    align-items: center;
+    gap: var(--s-2) var(--s-3);
+    width: 100%;
+    /* Sized for a fingertip at arm's length, not for a mouse. */
+    min-height: 4rem;
+    padding: var(--s-2) var(--s-3);
+    border-radius: var(--r-md);
+    background: rgba(255, 255, 255, 0.028);
+    border: 1px solid var(--forge-stroke);
+    border-left: 3px solid var(--tag, var(--fire-2));
+    text-align: left;
+    overflow: hidden;
+}
+
+/* The one still ahead of you. Replaces the full-width "now" divider, which
+   could not survive a two-column list. */
+.fg-quest.next {
+    border-color: var(--fire-2);
+    background: rgba(245, 158, 11, 0.07);
+    box-shadow: 0 0 0 1px rgba(245, 158, 11, 0.18);
+}
+
+.fg-next-flag {
+    position: absolute;
+    top: 0;
+    right: 0;
+    padding: 0.1rem 0.45rem;
+    border-radius: 0 var(--r-md) 0 var(--r-sm);
+    background: var(--fire-2);
+    color: var(--fire-ink);
+    font-size: 0.58rem;
+    font-weight: 800;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+}
+
+.fg-quest:active { background: rgba(245, 158, 11, 0.1); }
+
+.fg-when {
+    font-family: var(--font-mono);
+    font-size: 0.68rem;
+    font-weight: 600;
+    color: var(--text-3);
+    white-space: nowrap;
+}
+
+/* Past its hour and still open — the app flags these, and so should a panel
+   you glance at from the doorway. */
+.fg-when.late { color: var(--fire-3); }
+.fg-when.late b { color: #ef4444; margin-left: 0.2rem; }
+
+.fg-tick {
+    display: grid;
+    place-items: center;
+    width: 2.4rem;
+    height: 2.4rem;
+    border-radius: 0.7rem;
+    border: 2px solid var(--stroke-2);
+    color: transparent;
+    transition: all var(--dur-fast) var(--ease-out);
+}
+
+.fg-quest-main {
+    display: flex;
+    flex-direction: column;
+    gap: 0.1rem;
+    min-width: 0;
+}
+
+.fg-quest-main .t {
+    font-size: var(--t-md);
+    font-weight: 700;
+    line-height: 1.2;
+}
+
+/* Attribute tag and duration ride under the title rather than out at the far
+   edge of the row, which is where the empty space used to live. */
+.fg-quest-main .m {
+    display: flex;
+    align-items: center;
+    gap: var(--s-2);
+    min-width: 0;
+    font-size: var(--t-xs);
+    color: var(--text-3);
+}
+
+.fg-xp-gain {
+    font-family: var(--font-display);
+    font-size: var(--t-sm);
+    font-weight: 800;
+    color: var(--fire-1);
+}
+
+.fg-quest.done {
+    background: transparent;
+    border-left-color: var(--stroke-2);
+}
+
+.fg-quest.done .fg-tick {
+    background: var(--tag);
+    border-color: var(--tag);
+    color: var(--fire-ink);
+}
+
+.fg-quest.done .fg-quest-main .t {
+    color: var(--text-3);
+    text-decoration: line-through;
+}
+
+.fg-quest.done .fg-xp-gain,
+.fg-quest.done .fg-attr-tag { opacity: 0.4; }
+
+/* A write is in flight. The row keeps its optimistic state but stops taking
+   taps, so a double press can't queue a second flip. */
+.fg-quest.busy {
+    opacity: 0.6;
+    pointer-events: none;
+}
+
+/* ── Empty / setup states ────────────────────────────────────────────────── */
+
+.fg-empty,
+.fg-setup {
+    display: grid;
+    place-content: center;
+    justify-items: center;
+    gap: var(--s-3);
+    height: 100%;
+    padding: var(--s-6);
+    text-align: center;
+}
+
+.fg-empty .ic,
+.fg-setup .ic {
+    width: 2.8rem;
+    height: 2.8rem;
+    color: var(--fire-2);
+    opacity: 0.7;
+}
+
+.fg-empty h3,
+.fg-setup h2 {
+    font-family: var(--font-display);
+    font-size: var(--t-xl);
+    font-weight: 700;
+}
+
+.fg-empty p,
+.fg-setup p {
+    max-width: 34rem;
+    font-size: var(--t-sm);
+    color: var(--text-2);
+    line-height: 1.5;
+}
+
+.fg-setup p.dim { color: var(--text-3); }
+
+.fg-setup code {
+    font-family: var(--font-mono);
+    font-size: 0.92em;
+    padding: 0.1rem 0.35rem;
+    border-radius: var(--r-xs);
+    background: rgba(245, 158, 11, 0.12);
+    color: var(--fire-1);
+}

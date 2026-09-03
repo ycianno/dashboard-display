@@ -1,7 +1,8 @@
 # 🖥️ Dashboard Display
 
 An always-on wall dashboard for repurposed hardware — built for a Surface Pro running
-Edge in kiosk mode. Three swipeable pages: an at-a-glance **Overview**, a full
+Edge in kiosk mode. Four swipeable pages: an at-a-glance **Overview**, **Today**
+from a self-hosted habit tracker, a full
 **Spotify** player, and live **Infrastructure** monitoring for a homelab.
 
 **No frameworks. No build step. Vanilla ES modules, CSS and a small Node server.**
@@ -14,6 +15,7 @@ key for the page in that position.
 | Page | What's on it |
 |---|---|
 | **Overview** | Hero clock, daylight progress, 12-hour + 4-day forecast, now-playing card, infrastructure health summary |
+| **Today** | Level, rank, attributes, streak, the week's boss and today's quests from [The Forge](https://github.com/ycianno/the-forge) — tap a quest to complete it |
 | **Music** | Album art, synced lyrics, queue, device switching, seek, volume — plus an immersive full-screen mode |
 | **Servers** | Proxmox nodes and guests, Netdata agents, storage pools, HTTP service checks, alerts |
 
@@ -38,6 +40,17 @@ default page.
 - **HTTP checks** — up/down and latency for anything else (Home Assistant, Plex, a router…)
 - **Alerts** — threshold breaches roll up into the top bar and the Overview page
 
+### Today (The Forge)
+- **Dressed like the game** — The Forge is amber and ember on warm black, so this page is too. The palette is scoped to the view; every other page still takes its accent from the album art
+- **The whole sheet** — level orb, rank, tier and ladder pips, the next rung, day and week streaks, lifetime XP
+- **The shape** — the app's own attribute radar, one wedge per attribute in its own colour, ported from The Forge so the panel draws the same figure
+- **The cabinet** — trophies by grade (an empty grade is drawn, not hidden), insignia count, and your most recent records
+- **The week's boss** — remaining HP, the attribute it's weak to, what finishing that category is still worth, and its taunt
+- **The day, not a list** — quests run in as many columns as fit, so a nine-quest day is visible from the doorway without scrolling. Each carries its hour, attribute tag and XP; anything past its hour is flagged, and the next one still ahead of you is ringed
+- **Tap to complete** — one tap ticks a quest and writes it back to The Forge; XP, streak, week score and boss HP all settle in the same tap
+- **No second copy of the rules** — the numbers are computed by The Forge's own engine and served from its `/api/dashboard`, so the panel can never disagree with the app
+
+
 ### Display
 - **Touch zone** — this panel's digitizer only answers on part of the glass, so `touchZone` declares which half is live and every control is laid out inside it. `?touchzone=1` draws the boundary on screen to check it on the hardware
 - **Weather** — current conditions, hourly and daily forecast from [Open-Meteo](https://open-meteo.com) (free, no API key)
@@ -58,6 +71,7 @@ dashboard-display/
 │   ├── now-playing.css
 │   ├── infra.css
 │   └── overview.css
+│   └── forge.css
 ├── js/
 │   ├── main.js              # Boot + wiring
 │   ├── config.js            # Defaults, merge, legacy-shape migration
@@ -69,13 +83,15 @@ dashboard-display/
 │   ├── palette.js           # Album art → accent palette
 │   ├── weather.js           # Open-Meteo
 │   ├── infra-client.js      # Polls /api/infra
+│   ├── forge-client.js      # Polls /api/forge, writes quest completions
 │   ├── touch-zone.js        # Declares the live band + the ?touchzone=1 overlay
 │   ├── visualizer.js, clock.js, display.js, mini-player.js, util.js
 │   └── views/               # registry.js + one file per page
-├── server.js                # Static server + /api/infra
+├── server.js                # Static server + the /api routes
 ├── server/
 │   ├── infra.js             # Aggregation, history, alerts, caching
 │   ├── collectors.js        # Proxmox / Netdata / HTTP check collectors
+│   ├── forge.js             # The Forge summary + quest writes
 │   ├── http-client.js       # Promise HTTP(S) with per-request TLS control
 │   └── demo.js              # Synthetic snapshot for ?demo=1
 ├── config.js                # Browser config (git-ignored)
@@ -92,6 +108,11 @@ client-side JavaScript. So `server.js` — already there to serve the static
 files — also exposes `GET /api/infra`, which polls your gear from Node,
 caches the result briefly, keeps a rolling history for the sparklines, and
 hands the browser one clean JSON snapshot.
+
+The Forge is there for the same reason. A sync token can read and write
+everything in your tracker, and that has no business in a page sitting unlocked
+on a wall. It stays in `server.config.js`, and the browser only ever sees the
+summary.
 
 Spotify needs no backend: it uses the PKCE flow entirely in the browser.
 
@@ -147,14 +168,24 @@ Netdata agents need nothing beyond their URL. HTTP checks take a name and a URL.
 
 Skip this entirely and the Servers page shows setup instructions instead.
 
-### 4. Set the touch zone
+### 4. Connect The Forge (optional)
+
+Add a `forge` block to `server.config.js` with your instance URL and a sync
+token (The Forge → Settings → Sync, or `POST /api/sync/token`). Without it the
+Today page shows setup instructions instead.
+
+This needs a Forge new enough to serve `GET /api/dashboard`. Against an older
+build the Today page says exactly that rather than showing a generic error,
+and so does the Overview tile.
+
+### 5. Set the touch zone
 
 If your panel's digitizer is only alive on part of the glass, set
 `dashboard.touchZone` in `config.js` to `top`, `bottom`, `left` or `right`.
 Load the dashboard with `?touchzone=1` to see the boundary drawn over the UI
 and confirm every control landed on the right side of it.
 
-### 5. Run
+### 6. Run
 
 ```bash
 node server.js

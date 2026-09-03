@@ -13,6 +13,7 @@
 import { initOverview } from './overview.js';
 import { initNowPlaying } from './now-playing.js';
 import { initInfra } from './infra.js';
+import { initForge } from './forge.js';
 
 export const VIEWS = [
   {
@@ -21,6 +22,13 @@ export const VIEWS = [
     icon: 'grid',
     el: 'view-overview',
     init: initOverview
+  },
+  {
+    id: 'forge',
+    label: 'Today',
+    icon: 'forge',
+    el: 'view-forge',
+    init: initForge
   },
   {
     id: 'now-playing',
