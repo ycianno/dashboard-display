@@ -23,6 +23,24 @@ function normalizeScopes(scopes) {
   return String(scopes || '').trim().split(/\s+/).filter(Boolean).sort().join(' ');
 }
 
+function scopeSet(scopes) {
+  return new Set(String(scopes || '').trim().split(/\s+/).filter(Boolean));
+}
+
+/**
+ * True only when the stored grant is missing something the app now needs.
+ *
+ * The old test was equality, which meant *any* edit to the scope list threw
+ * the session away — including removing a scope, which leaves a grant that is
+ * still perfectly capable of everything asked of it. On a wall panel that is
+ * a real cost: signing back in means walking over with a keyboard. A grant is
+ * only useless once it can no longer do the job, so that is what we check.
+ */
+function grantIsInsufficient(storedScopes, requiredScopes) {
+  const stored = scopeSet(storedScopes);
+  return [...scopeSet(requiredScopes)].some((scope) => !stored.has(scope));
+}
+
 export class SpotifyClient {
   constructor(config) {
     this.clientId = config.clientId;
@@ -226,8 +244,9 @@ export class SpotifyClient {
     );
     if (!hasToken) return false;
 
-    // A scope change means the stored grant can't do what the app now needs.
-    if (normalizeScopes(localStorage.getItem(KEY.scopes)) !== normalizeScopes(this.scopes)) {
+    // Only a grant that is actually missing a scope is worth throwing away.
+    if (grantIsInsufficient(localStorage.getItem(KEY.scopes), this.scopes)) {
+      console.warn('Stored Spotify grant is missing a required scope; re-auth needed.');
       this.logout(false);
       return false;
     }

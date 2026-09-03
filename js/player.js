@@ -76,6 +76,10 @@ async function poll() {
   }
 
   if (result.offline) {
+    // Deliberately does not touch `status`: whatever was on screen stays on
+    // screen and goes visibly stale. Dropping to 'unauthenticated' here is
+    // what used to put the Connect Spotify screen up over a working session,
+    // and tapping it throws away a grant that was never bad.
     playerStore.set({ error: 'offline' });
     throw new Error('Spotify unreachable');
   }
@@ -318,9 +322,24 @@ export async function startPlayer() {
     return null;
   }
 
-  poller = createPoller(poll, { interval: CONFIG.dashboard.spotifyPollInterval });
+  // Backoff is capped low here on purpose. A dead network should not cost a
+  // minute of "offline" after it comes back — 30s is long enough to stop
+  // hammering Spotify and short enough that the display self-heals before
+  // anyone walks over to it.
+  poller = createPoller(poll, {
+    interval: CONFIG.dashboard.spotifyPollInterval,
+    maxInterval: 30000
+  });
   poller.start();
   startTicker();
+
+  // ...and when the browser tells us the network is back, don't wait for the
+  // backoff at all. This is the difference between recovering in a second and
+  // recovering whenever the timer happens to come round.
+  window.addEventListener('online', () => {
+    playerStore.set({ error: null });
+    poller.kick(0);
+  });
 
   // Polling a paused display is wasted work; the Surface sleeps its browser
   // when the screen is off.

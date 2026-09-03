@@ -110,15 +110,24 @@ export function createPoller(fn, { interval, maxInterval = interval * 12 } = {})
   let timer = null;
   let delay = interval;
   let stopped = false;
+  let inFlight = false;
 
   const run = async () => {
     if (stopped) return;
+    // A kick() landing mid-request used to start a second overlapping poll —
+    // which is exactly what an `online` event does, since it fires while the
+    // failing request from the outage is often still hanging.
+    if (inFlight) return;
+
+    inFlight = true;
     try {
       await fn();
       delay = interval;
     } catch (err) {
       delay = Math.min(delay * 2, maxInterval);
       console.warn('Poll failed, backing off to', delay, 'ms', err);
+    } finally {
+      inFlight = false;
     }
     if (!stopped) timer = setTimeout(run, delay);
   };
