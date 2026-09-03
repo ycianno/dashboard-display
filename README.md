@@ -295,6 +295,31 @@ powercfg /SETACTIVE SCHEME_CURRENT
 
 `Win+R` → `netplwiz` → untick "Users must enter a user name and password" → Apply.
 
+## Deploying to the panel
+
+```bash
+cp scripts/deploy.env.example scripts/deploy.env   # once: set host + path
+npm run deploy
+```
+
+Three things live only on the display and cannot be recovered from git:
+
+| | |
+|---|---|
+| `config.js` | the Spotify client id and that panel's page layout |
+| `server.config.js` | the Proxmox token and The Forge sync token |
+| the Edge profile | where the Spotify refresh token sits, in `localStorage` |
+
+Copying the repo over the top wipes the first two and changes the client id
+and scopes under the third, which signs the display out — and signing back in
+means carrying a keyboard to the wall. So `npm run deploy` pushes **code
+only**. It refuses to run if either config is missing on the panel, tells you
+when the live config has drifted behind the example rather than overwriting
+it, and restarts through the existing scheduled tasks.
+
+`scripts/deploy.env` is git-ignored, because this repo is public and a host
+alias plus a Windows user directory are not worth publishing.
+
 ## Remote management
 
 If the display is reachable on your network (e.g. via Tailscale):

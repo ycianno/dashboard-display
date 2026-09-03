@@ -1,3 +1,6 @@
 config.js
 server.config.js
 node_modules/
+
+# Where this particular panel lives. Never published.
+scripts/deploy.env

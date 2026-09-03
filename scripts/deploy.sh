@@ -16,12 +16,35 @@
 # code only, and tells you when the live config has drifted behind the example
 # instead of silently overwriting it.
 #
+# Where the panel is lives in scripts/deploy.env, which is git-ignored — this
+# repo is public, and an SSH host alias plus a Windows user directory are not
+# things to publish just to save typing them.
+#
+#   cp scripts/deploy.env.example scripts/deploy.env   # then edit
+#
 # Usage:  scripts/deploy.sh [ssh-host]
 #
 set -euo pipefail
 
-HOST="${1:-budgetnote-win01}"
-REMOTE_DIR='C:/Users/pj640/dashboard-display'
+HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# shellcheck source=/dev/null
+[ -f "$HERE/deploy.env" ] && . "$HERE/deploy.env"
+
+HOST="${1:-${DASHBOARD_HOST:-}}"
+REMOTE_DIR="${DASHBOARD_REMOTE_DIR:-}"
+
+if [ -z "$HOST" ] || [ -z "$REMOTE_DIR" ]; then
+  cat >&2 <<'MSG'
+Set the panel's address before deploying:
+
+  cp scripts/deploy.env.example scripts/deploy.env
+  $EDITOR scripts/deploy.env        # DASHBOARD_HOST, DASHBOARD_REMOTE_DIR
+
+deploy.env is git-ignored. Or pass the host as an argument and export
+DASHBOARD_REMOTE_DIR yourself.
+MSG
+  exit 1
+fi
 
 # Code only. Deliberately excludes config.js and server.config.js.
 PAYLOAD=(index.html server.js package.json css js server scripts)
