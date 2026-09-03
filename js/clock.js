@@ -46,6 +46,10 @@ export function startClock() {
     if (nodes.barDay.textContent !== day) nodes.barDay.textContent = day;
     if (nodes.barDate.textContent !== date) nodes.barDate.textContent = date;
 
+    // The Overview hero is only present when that page is configured; the
+    // top bar is always there.
+    if (!nodes.ovTime) return;
+
     if (nodes.ovTime.textContent !== time) nodes.ovTime.textContent = time;
     if (nodes.ovPeriod.textContent !== period) nodes.ovPeriod.textContent = period;
 

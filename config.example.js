@@ -32,6 +32,12 @@ window.CONFIG = {
   dashboard: {
     // Page order, left to right. Drop any you don't want.
     views: ['overview', 'now-playing', 'infra'],
+    // Which part of the panel still registers touch. Every control the UI
+    // draws is kept inside this band; the rest of the screen stays display
+    // only. 'full' | 'top' | 'bottom' | 'left' | 'right'.
+    // Add ?touchzone=1 to the URL to see the boundary drawn on screen.
+    touchZone: 'bottom',
+
     // The page the display settles on.
     defaultView: 'now-playing',
     // Return to that page after this long without a touch. 0 disables.

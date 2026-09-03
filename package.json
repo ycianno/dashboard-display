@@ -1,0 +1,12 @@
+{
+  "name": "dashboard-display",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Always-on wall dashboard for a repurposed Surface Pro: overview, The Forge, Spotify and homelab infrastructure.",
+  "license": "MIT",
+  "scripts": {
+    "start": "node server.js",
+    "check": "npm run check:syntax",
+    "check:syntax": "node scripts/check-syntax.js"
+  }
+}

@@ -8,7 +8,8 @@ Edge in kiosk mode. Three swipeable pages: an at-a-glance **Overview**, a full
 
 ## Pages
 
-Swipe left/right, tap the pager in the dock, or press `←` / `→` / `1` `2` `3`.
+Swipe left/right, tap the pager in the dock, or press `←` / `→` — or a number
+key for the page in that position.
 
 | Page | What's on it |
 |---|---|
@@ -38,6 +39,7 @@ default page.
 - **Alerts** — threshold breaches roll up into the top bar and the Overview page
 
 ### Display
+- **Touch zone** — this panel's digitizer only answers on part of the glass, so `touchZone` declares which half is live and every control is laid out inside it. `?touchzone=1` draws the boundary on screen to check it on the hardware
 - **Weather** — current conditions, hourly and daily forecast from [Open-Meteo](https://open-meteo.com) (free, no API key)
 - **Burn-in protection** — the UI walks a small pixel diamond every 90 seconds
 - **Night dimming** — screen brightness drops on a schedule that wraps past midnight
@@ -67,8 +69,9 @@ dashboard-display/
 │   ├── palette.js           # Album art → accent palette
 │   ├── weather.js           # Open-Meteo
 │   ├── infra-client.js      # Polls /api/infra
+│   ├── touch-zone.js        # Declares the live band + the ?touchzone=1 overlay
 │   ├── visualizer.js, clock.js, display.js, mini-player.js, util.js
-│   └── views/               # now-playing.js, overview.js, infra.js
+│   └── views/               # registry.js + one file per page
 ├── server.js                # Static server + /api/infra
 ├── server/
 │   ├── infra.js             # Aggregation, history, alerts, caching
@@ -101,6 +104,8 @@ Useful when you're debugging the display over SSH:
 | `?demo=1` | Synthetic Spotify + infrastructure data |
 | `?kiosk=0` | Bring back the mouse pointer |
 | `?view=infra` | Open straight onto a page |
+| `?touchzone=1` | Draw the touch-zone boundary over the UI |
+| `?touch=full` | Override the configured touch zone for one load |
 
 ## Setup
 
@@ -142,13 +147,32 @@ Netdata agents need nothing beyond their URL. HTTP checks take a name and a URL.
 
 Skip this entirely and the Servers page shows setup instructions instead.
 
-### 4. Run
+### 4. Set the touch zone
+
+If your panel's digitizer is only alive on part of the glass, set
+`dashboard.touchZone` in `config.js` to `top`, `bottom`, `left` or `right`.
+Load the dashboard with `?touchzone=1` to see the boundary drawn over the UI
+and confirm every control landed on the right side of it.
+
+### 5. Run
 
 ```bash
 node server.js
 ```
 
 Open `http://127.0.0.1:8080/` and click **Connect Spotify**.
+
+## Checking your work
+
+There's no build step, so nothing catches a typo until the kiosk renders a
+blank page in another room. Before deploying:
+
+```bash
+npm run check
+```
+
+It parses every JavaScript file in the project — server files as CommonJS,
+browser files as ES modules.
 
 ## Spotify API scopes
 

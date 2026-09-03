@@ -6,28 +6,19 @@ import { CONFIG, FLAGS } from './config.js';
 import { $, esc } from './util.js';
 import { weatherStore, infraStore } from './store.js';
 import { createRouter, createIdleReturn } from './router.js';
+import { startTouchZone } from './touch-zone.js';
 import { startDisplayCare } from './display.js';
 import { startClock } from './clock.js';
 import { startWeather } from './weather.js';
 import { startInfra } from './infra-client.js';
 import { startPlayer } from './player.js';
-import { initNowPlaying } from './views/now-playing.js';
-import { initOverview } from './views/overview.js';
-import { initInfra } from './views/infra.js';
+import { resolveViews } from './views/registry.js';
 import { initMiniPlayer } from './mini-player.js';
 import { resetPalette } from './palette.js';
 
-const VIEW_META = {
-  overview: { id: 'overview', label: 'Overview', icon: 'grid', el: 'view-overview' },
-  'now-playing': { id: 'now-playing', label: 'Music', icon: 'note', el: 'view-now-playing' },
-  infra: { id: 'infra', label: 'Servers', icon: 'server', el: 'view-infra' }
-};
-
 function bootViews() {
   const track = $('#deck-track');
-  const views = CONFIG.dashboard.views
-    .map((id) => VIEW_META[id])
-    .filter((meta) => meta && document.getElementById(meta.el));
+  const views = resolveViews(CONFIG.dashboard.views);
 
   // Reorder the DOM to match the configured page order.
   views.forEach((meta) => track.appendChild(document.getElementById(meta.el)));
@@ -123,6 +114,7 @@ function main() {
   const app = $('#app');
 
   startDisplayCare();
+  startTouchZone(app);
   resetPalette();
 
   const views = bootViews();
@@ -173,9 +165,12 @@ function main() {
   document.addEventListener('pointerdown', peekChrome, { passive: true });
 
   // ── Views ───────────────────────────────────────────────────────────────
-  initNowPlaying({ onToggleImmersive: () => setImmersive(!immersive) });
-  initOverview();
-  initInfra();
+  // Each view gets the same context; most ignore most of it.
+  const context = {
+    goToView: (id) => router.goToId(id),
+    onToggleImmersive: () => setImmersive(!immersive)
+  };
+  views.forEach((view) => view.init(context));
   bindTopbar();
   bindToasts();
 
@@ -197,12 +192,14 @@ function main() {
       case 'ArrowRight': router.next(); break;
       case 'ArrowLeft': router.prev(); break;
       case 'f': case 'F': setImmersive(!immersive); break;
-      case '1': case '2': case '3': {
-        const index = Number(event.key) - 1;
-        if (index < views.length) router.go(index);
+      default: {
+        // 1..9 jump straight to a page, however many pages are configured.
+        if (/^[1-9]$/.test(event.key)) {
+          const index = Number(event.key) - 1;
+          if (index < views.length) router.go(index);
+        }
         break;
       }
-      default: break;
     }
   });
 }
