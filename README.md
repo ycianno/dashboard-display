@@ -83,7 +83,7 @@ dashboard-display/
 │   ├── store.js             # Observable stores (player / weather / infra)
 │   ├── router.js            # Paged views + swipe gestures
 │   ├── player.js            # Spotify polling, progress interpolation, actions
-│   ├── spotify-api.js       # Web API client with PKCE OAuth
+│   ├── spotify-api.js       # Web API client; starts PKCE sign-in, gets tokens from the server
 │   ├── lyrics.js            # LRCLIB fetch + LRC parsing
 │   ├── palette.js           # Album art → accent palette
 │   ├── weather.js           # Open-Meteo
@@ -97,8 +97,10 @@ dashboard-display/
 │   ├── infra.js             # Aggregation, history, alerts, caching
 │   ├── collectors.js        # Proxmox / Netdata / HTTP check collectors
 │   ├── forge.js             # The Forge summary + quest writes
+│   ├── spotify-auth.js      # Holds the Spotify grant; refreshes it, one at a time
 │   ├── http-client.js       # Promise HTTP(S) with per-request TLS control
 │   └── demo.js              # Synthetic snapshot for ?demo=1
+├── state/                   # Runtime state, incl. the Spotify grant (git-ignored, never served)
 ├── config.js                # Browser config (git-ignored)
 ├── config.example.js
 ├── server.config.js         # Server config + API tokens (git-ignored)
@@ -119,7 +121,16 @@ everything in your tracker, and that has no business in a page sitting unlocked
 on a wall. It stays in `server.config.js`, and the browser only ever sees the
 summary.
 
-Spotify needs no backend: it uses the PKCE flow entirely in the browser.
+Spotify is there for a subtler reason. Its refresh tokens are now single-use:
+each refresh returns a new one and retires the old. Kept in the browser's
+`localStorage`, that chain broke whenever the newest link didn't reach disk —
+Edge force-closed by a deploy or a Windows update, or two windows refreshing at
+once — and every break meant signing in again at the wall. So sign-in still
+starts in the browser (PKCE, no client secret), but the server finishes it and
+keeps the grant in `state/spotify-session.json`, written atomically and
+refreshed by one process. Browsers only ever get a short-lived access token.
+The `/api/spotify/*` routes answer this machine only, whatever `host` is set
+to.
 
 ### Query-string flags
 
@@ -196,7 +207,28 @@ and confirm every control landed on the right side of it.
 node server.js
 ```
 
-Open `http://127.0.0.1:8080/` and click **Connect Spotify**.
+Open `http://127.0.0.1:8080/` and click **Connect Spotify**. Use `127.0.0.1`,
+not `localhost`: they are different addresses to the browser, and Spotify only
+returns to the one registered on the app (the page moves you there if you
+forget).
+
+### Signing in to the panel from a laptop
+
+The panel has no keyboard, and you don't need one. Stop any dashboard running
+on the laptop, then tunnel the laptop's port 8080 to the panel's:
+
+```bash
+ssh -L 8080:127.0.0.1:8080 <panel-host>
+```
+
+Open `http://127.0.0.1:8080/` on the laptop and click **Connect Spotify**.
+Spotify redirects back to `127.0.0.1:8080`, which is the tunnel, so the grant
+lands on the panel's server. The panel notices within a few seconds and shows
+the music page by itself.
+
+Spotify ends every grant **six months** after sign-in, however often it is
+refreshed. Two weeks before that, the panel shows a reminder; do the tunnel
+sign-in again whenever it does.
 
 ## Checking your work
 
@@ -218,16 +250,21 @@ browser files as ES modules.
 | `user-read-playback-state` | Play state, shuffle, repeat, volume, devices |
 | `user-modify-playback-state` | Play, pause, skip, seek, volume, shuffle, repeat, transfer |
 
-PKCE means no client secret. Tokens live in `localStorage` and refresh
-automatically; changing the scope list forces a clean re-auth on next load.
+PKCE means no client secret. The grant lives in `state/spotify-session.json`
+on the server and refreshes automatically. Adding a scope to the list makes
+the page ask for one new sign-in; removing one doesn't.
+
+Upgrading from a build that kept the grant in `localStorage`: the first load
+hands it to the server and then clears it from the browser, so the upgrade
+itself costs no sign-in.
 
 ## Kiosk mode
 
 ### Don't use `--kiosk`
 
-Edge's `--kiosk` mode always runs **InPrivate**, which wipes `localStorage` when
-the session ends — and that's where the Spotify refresh token lives. With
-`--kiosk` you have to reconnect Spotify after every reboot.
+Edge's `--kiosk` mode always runs **InPrivate**, which wipes the profile when
+the session ends. The Spotify grant no longer lives there, but a persistent
+profile is still the better footing for a display that runs for months.
 
 Use `--app` with a dedicated profile instead, then enter fullscreen once the
 page has painted. `start-kiosk.vbs` does exactly that, resolving every path at
@@ -308,10 +345,10 @@ Three things live only on the display and cannot be recovered from git:
 |---|---|
 | `config.js` | the Spotify client id and that panel's page layout |
 | `server.config.js` | the Proxmox token and The Forge sync token |
-| the Edge profile | where the Spotify refresh token sits, in `localStorage` |
+| `state/` | the Spotify grant, held by the server |
 
-Copying the repo over the top wipes the first two and changes the client id
-and scopes under the third, which signs the display out — and signing back in
+Copying the repo over the top wipes the first two and can change the client
+id and scopes the third was granted for, which signs the display out — and signing back in
 means carrying a keyboard to the wall. So `npm run deploy` pushes **code
 only**. It refuses to run if either config is missing on the panel, tells you
 when the live config has drifted behind the example rather than overwriting

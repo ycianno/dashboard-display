@@ -8,7 +8,7 @@
 #
 #   config.js         the Spotify client id and the page layout for that panel
 #   server.config.js  the Proxmox token and The Forge sync token
-#   the Edge profile  where the Spotify refresh token lives, in localStorage
+#   state/            the Spotify grant, held by the server (never in PAYLOAD)
 #
 # Copying the repo over the top of the panel wipes the first two and changes
 # the scope/client id under the third, which signs the display out — and

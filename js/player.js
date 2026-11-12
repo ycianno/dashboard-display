@@ -71,8 +71,16 @@ async function poll() {
   const result = await spotify.getPlaybackState();
 
   if (result.unauthenticated) {
-    playerStore.set({ status: 'unauthenticated', track: null, isPlaying: false });
+    // Only on the transition: this branch now runs on every poll while signed
+    // out, and re-setting the same state would re-render for nothing.
+    if (playerStore.get().status !== 'unauthenticated') {
+      playerStore.set({ status: 'unauthenticated', track: null, isPlaying: false });
+    }
     return;
+  }
+
+  if (spotify.grantedAt !== playerStore.get().grantedAt) {
+    playerStore.set({ grantedAt: spotify.grantedAt });
   }
 
   if (result.offline) {
@@ -317,11 +325,15 @@ export async function startPlayer() {
     return null;
   }
 
-  if (!spotify.isAuthenticated()) {
-    playerStore.set({ status: 'unauthenticated' });
-    return null;
-  }
+  const session = await spotify.checkSession();
+  playerStore.set({ grantedAt: spotify.grantedAt });
+  if (session === 'unauthenticated') playerStore.set({ status: 'unauthenticated' });
 
+  // The poller runs even while signed out. Every poll asks our own server for
+  // a token, so a sign-in finished somewhere else — a laptop coming in over an
+  // SSH tunnel — brings the music page up on the wall by itself, without
+  // anyone touching the panel.
+  //
   // Backoff is capped low here on purpose. A dead network should not cost a
   // minute of "offline" after it comes back — 30s is long enough to stop
   // hammering Spotify and short enough that the display self-heals before

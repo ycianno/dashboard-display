@@ -4,7 +4,7 @@
 
 import { CONFIG, FLAGS } from './config.js';
 import { $, esc } from './util.js';
-import { weatherStore, infraStore } from './store.js';
+import { weatherStore, infraStore, playerStore } from './store.js';
 import { createRouter, createIdleReturn } from './router.js';
 import { startTouchZone } from './touch-zone.js';
 import { startDisplayCare } from './display.js';
@@ -103,6 +103,29 @@ function bindToasts() {
     if (node) node.remove();
   }
 
+  // Spotify ends every grant six months after sign-in, and refreshing doesn't
+  // reset that clock. Say so two weeks ahead, while it's still a convenient
+  // moment to sign in again, rather than letting the panel go dark one morning.
+  const GRANT_LIFETIME_DAYS = 182;
+  const WARN_DAYS_AHEAD = 14;
+  playerStore.subscribe((state) => {
+    if (!state.grantedAt || state.status === 'unauthenticated') {
+      hide('toast-spotify-grant');
+      return;
+    }
+    const ageDays = (Date.now() - state.grantedAt) / 86400000;
+    const daysLeft = Math.max(0, Math.ceil(GRANT_LIFETIME_DAYS - ageDays));
+    if (daysLeft > WARN_DAYS_AHEAD) {
+      hide('toast-spotify-grant');
+      return;
+    }
+    show(
+      'toast-spotify-grant',
+      'warn',
+      `Spotify sign-in expires in about ${daysLeft} day${daysLeft === 1 ? '' : 's'} — sign in again to keep the music page`
+    );
+  });
+
   const showOffline = () => show('toast-offline', 'crit', 'No network connection');
 
   window.addEventListener('offline', showOffline);
@@ -111,7 +134,36 @@ function bindToasts() {
   if (!navigator.onLine) showOffline();
 }
 
+/**
+ * localhost and 127.0.0.1 are different origins to the browser. Spotify only
+ * redirects back to the address registered on the app (127.0.0.1), so a
+ * sign-in started on localhost saved its PKCE verifier where the callback
+ * can't read it, and silently failed. Move to the redirect's origin first.
+ */
+function moveToRedirectOrigin() {
+  let target;
+  try {
+    target = new URL(CONFIG.spotify.redirectUri);
+  } catch (err) {
+    return false;
+  }
+  const loopback = new Set(['localhost', '127.0.0.1', '[::1]']);
+  const here = window.location;
+  if (
+    here.origin === target.origin ||
+    here.port !== target.port ||
+    !loopback.has(here.hostname) ||
+    !loopback.has(target.hostname)
+  ) {
+    return false;
+  }
+  here.replace(`${target.origin}${here.pathname}${here.search}${here.hash}`);
+  return true;
+}
+
 function main() {
+  if (moveToRedirectOrigin()) return;
+
   const app = $('#app');
 
   startDisplayCare();

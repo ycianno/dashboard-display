@@ -44,6 +44,9 @@ export const playerStore = createStore({
   devices: [],
   queue: [],
   lyrics: { state: 'idle', synced: null, plain: null, trackId: null },
+  // When the Spotify grant was made (ms), or null if unknown. Spotify ends
+  // every grant six months on; main.js warns as that approaches.
+  grantedAt: null,
   error: null
 });
 

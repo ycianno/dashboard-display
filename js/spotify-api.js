@@ -1,44 +1,47 @@
 // ══════════════════════════════════════════════════════════════════════════
-// Spotify Web API client (PKCE — no client secret, no backend)
+// Spotify Web API client
+//
+// Sign-in still starts here (PKCE: no client secret), but the grant itself is
+// held by the dashboard's own server — see server/spotify-auth.js for why.
+// This client only ever holds a short-lived access token, in memory.
 // ══════════════════════════════════════════════════════════════════════════
 
 const API = 'https://api.spotify.com/v1';
-const TOKEN_ENDPOINT = 'https://accounts.spotify.com/api/token';
 const AUTH_ENDPOINT = 'https://accounts.spotify.com/authorize';
 
-const KEY = {
+const VERIFIER_KEY = 'spotify_code_verifier';
+
+// Where earlier builds kept the grant. Read once, handed to the server, then
+// cleared — see _handOverLegacyGrant.
+const LEGACY_KEY = {
   token: 'spotify_access_token',
   refresh: 'spotify_refresh_token',
   refreshBackup: 'spotify_refresh_token_prev',
-  verifier: 'spotify_code_verifier',
   expiry: 'spotify_token_expiry',
   scopes: 'spotify_scopes'
 };
-
-/**
- * Scopes are compared as an unordered set: reordering or respacing the string
- * in config.js used to read as a changed grant and sign the display out.
- */
-function normalizeScopes(scopes) {
-  return String(scopes || '').trim().split(/\s+/).filter(Boolean).sort().join(' ');
-}
 
 function scopeSet(scopes) {
   return new Set(String(scopes || '').trim().split(/\s+/).filter(Boolean));
 }
 
 /**
- * True only when the stored grant is missing something the app now needs.
- *
- * The old test was equality, which meant *any* edit to the scope list threw
- * the session away — including removing a scope, which leaves a grant that is
- * still perfectly capable of everything asked of it. On a wall panel that is
- * a real cost: signing back in means walking over with a keyboard. A grant is
- * only useless once it can no longer do the job, so that is what we check.
+ * True only when the grant is missing something the app now needs. Removing a
+ * scope from config.js leaves a grant that can still do everything asked of
+ * it, so that must not cost a sign-in.
  */
-function grantIsInsufficient(storedScopes, requiredScopes) {
-  const stored = scopeSet(storedScopes);
-  return [...scopeSet(requiredScopes)].some((scope) => !stored.has(scope));
+function grantIsInsufficient(grantedScopes, requiredScopes) {
+  const granted = scopeSet(grantedScopes);
+  return [...scopeSet(requiredScopes)].some((scope) => !granted.has(scope));
+}
+
+async function postJson(path, body) {
+  const response = await fetch(path, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body)
+  });
+  return response.json();
 }
 
 export class SpotifyClient {
@@ -47,7 +50,12 @@ export class SpotifyClient {
     this.redirectUri = config.redirectUri;
     this.scopes = config.scopes;
 
-    this._refreshing = null;
+    this._access = null; // { token, expiresAt }
+    this._pending = null;
+
+    // When the grant was made, so the display can warn before Spotify's
+    // six-month limit signs it out. null when unknown.
+    this.grantedAt = null;
 
     // Set when Spotify rate-limits us; every call short-circuits until it passes.
     this._retryAfter = 0;
@@ -70,10 +78,8 @@ export class SpotifyClient {
   }
 
   async initiateLogin() {
-    this.logout(false);
-
     const verifier = this._randomString(64);
-    localStorage.setItem(KEY.verifier, verifier);
+    localStorage.setItem(VERIFIER_KEY, verifier);
 
     const url = new URL(AUTH_ENDPOINT);
     url.search = new URLSearchParams({
@@ -88,32 +94,32 @@ export class SpotifyClient {
     window.location.href = url.toString();
   }
 
+  /** Hands the code from Spotify's redirect to the server, which keeps the grant. */
   async handleCallback() {
     const code = new URLSearchParams(window.location.search).get('code');
     if (!code) return false;
 
-    const verifier = localStorage.getItem(KEY.verifier);
-    if (!verifier) return false;
+    const verifier = localStorage.getItem(VERIFIER_KEY);
+    // Strip ?code= either way: a reload must not replay a spent code.
+    window.history.replaceState({}, document.title, window.location.pathname);
+    if (!verifier) {
+      console.error('Spotify callback without a verifier — was sign-in started on another address?');
+      return false;
+    }
 
     try {
-      const response = await fetch(TOKEN_ENDPOINT, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-        body: new URLSearchParams({
-          grant_type: 'authorization_code',
-          code,
-          redirect_uri: this.redirectUri,
-          client_id: this.clientId,
-          code_verifier: verifier
-        })
+      const result = await postJson('/api/spotify/session', {
+        code,
+        verifier,
+        redirectUri: this.redirectUri,
+        clientId: this.clientId
       });
+      localStorage.removeItem(VERIFIER_KEY);
+      if (!result.ok) throw new Error(result.error || result.reason);
 
-      if (!response.ok) throw new Error(`Token exchange failed (${response.status})`);
-
-      this._saveTokens(await response.json());
-      localStorage.setItem(KEY.scopes, normalizeScopes(this.scopes));
-      localStorage.removeItem(KEY.verifier);
-      window.history.replaceState({}, document.title, window.location.pathname);
+      // A fresh sign-in supersedes anything an older build left behind.
+      Object.values(LEGACY_KEY).forEach((key) => localStorage.removeItem(key));
+      this._accept(result);
       return true;
     } catch (err) {
       console.error('Spotify callback failed:', err);
@@ -121,116 +127,86 @@ export class SpotifyClient {
     }
   }
 
-  _saveTokens(data) {
-    const previous = localStorage.getItem(KEY.refresh);
-    localStorage.setItem(KEY.token, data.access_token);
-    if (data.refresh_token && data.refresh_token !== previous) {
-      // Keep the generation we're replacing. Spotify hands back a new refresh
-      // token on most exchanges without always retiring the old one, so when a
-      // refresh goes wrong we can't tell from here which generation is live.
-      if (previous) localStorage.setItem(KEY.refreshBackup, previous);
-      localStorage.setItem(KEY.refresh, data.refresh_token);
-    }
-    localStorage.setItem(KEY.expiry, String(Date.now() + data.expires_in * 1000));
-  }
-
-  logout(reload = true) {
-    Object.values(KEY).forEach((key) => localStorage.removeItem(key));
-    if (reload) window.location.reload();
-  }
-
   /**
-   * Exchanges one refresh token.
-   * Resolves 'ok' | 'invalid' (that grant is dead) | 'transient' (try later).
+   * Earlier builds kept the grant in this browser. Hand it to the server once
+   * so upgrading doesn't cost a sign-in, then forget it. Kept when the server
+   * couldn't reach Spotify, so the next load can try again.
    */
-  async _exchangeRefresh(refreshToken) {
-    let response;
+  async _handOverLegacyGrant() {
+    const refreshTokens = [
+      localStorage.getItem(LEGACY_KEY.refresh),
+      localStorage.getItem(LEGACY_KEY.refreshBackup)
+    ].filter(Boolean);
+    if (!refreshTokens.length) return;
+
+    let result;
     try {
-      response = await fetch(TOKEN_ENDPOINT, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-        body: new URLSearchParams({
-          grant_type: 'refresh_token',
-          refresh_token: refreshToken,
-          client_id: this.clientId
-        })
+      result = await postJson('/api/spotify/adopt', {
+        refreshTokens,
+        clientId: this.clientId,
+        scopes: localStorage.getItem(LEGACY_KEY.scopes) || ''
       });
     } catch (err) {
-      console.warn('Token refresh failed:', err.message);
-      return 'transient';
+      console.warn('Could not hand the Spotify grant to the server yet:', err.message);
+      return;
     }
-
-    if (response.ok) {
-      const data = await response.json();
-      if (!data.refresh_token) data.refresh_token = refreshToken;
-      this._saveTokens(data);
-      return 'ok';
-    }
-
-    // Only invalid_grant means the grant itself is gone. Spotify also answers
-    // 400 for malformed or misconfigured requests, and those must not wipe a
-    // working token on a display nobody is standing in front of.
-    if (response.status === 400) {
-      const body = await response.text().catch(() => '');
-      if (body.includes('invalid_grant')) return 'invalid';
-      console.warn('Token refresh rejected:', body || response.status);
-    }
-    return 'transient';
+    if (result.reason === 'transient') return;
+    Object.values(LEGACY_KEY).forEach((key) => localStorage.removeItem(key));
   }
 
-  async _runRefresh() {
-    const current = localStorage.getItem(KEY.refresh);
-    const backup = localStorage.getItem(KEY.refreshBackup);
-    if (!current && !backup) return 'revoked';
-
-    if (current) {
-      const outcome = await this._exchangeRefresh(current);
-      if (outcome === 'ok') return 'ok';
-      if (outcome === 'transient') return 'transient';
-    }
-
-    // The stored token was rejected outright. If a rotation's response was
-    // lost in flight — the display slept, Wi-Fi dropped mid-request — the
-    // live grant may be the generation on either side of that write, so try
-    // the other one before giving up and making someone sign in again.
-    if (backup && backup !== current) {
-      const outcome = await this._exchangeRefresh(backup);
-      if (outcome === 'ok') return 'ok';
-      if (outcome === 'transient') return 'transient';
-    }
-
-    this.logout(false);
-    return 'revoked';
-  }
-
-  _refresh() {
-    // Concurrent 401s used to each kick off their own refresh, racing to
-    // overwrite the token. All callers now await the same promise.
-    if (this._refreshing) return this._refreshing;
-
-    this._refreshing = this._runRefresh().finally(() => {
-      this._refreshing = null;
-    });
-    return this._refreshing;
+  _accept(view) {
+    this._access = { token: view.accessToken, expiresAt: view.expiresAt };
+    this.grantedAt = view.grantedAt ?? null;
   }
 
   /**
    * Resolves { token } or { reason: 'unauthenticated' | 'transient' }. The
-   * distinction matters: a network blip must not put the sign-in screen up,
-   * because tapping it throws away a token that was never actually bad.
+   * distinction matters: a network blip must not put the sign-in screen up.
+   *
+   * `stale` is a token Spotify just rejected; the server refreshes only if it
+   * still holds that one.
    */
-  async _ensureToken() {
-    const token = localStorage.getItem(KEY.token);
-    const expiry = Number(localStorage.getItem(KEY.expiry) || 0);
-    const hasGrant =
-      localStorage.getItem(KEY.refresh) || localStorage.getItem(KEY.refreshBackup);
+  async _ensureToken({ stale = null } = {}) {
+    if (!stale && this._access && Date.now() < this._access.expiresAt - 60000) {
+      return { token: this._access.token };
+    }
+    // One request to our server at a time; concurrent callers share it.
+    if (this._pending) return this._pending;
+    this._pending = this._fetchToken(stale).finally(() => {
+      this._pending = null;
+    });
+    return this._pending;
+  }
 
-    if (!token && !hasGrant) return { reason: 'unauthenticated' };
-    if (token && Date.now() < expiry - 60000) return { token };
+  async _fetchToken(stale) {
+    let view;
+    try {
+      const query = stale ? `?stale=${encodeURIComponent(stale)}` : '';
+      const response = await fetch(`/api/spotify/token${query}`, { cache: 'no-store' });
+      view = await response.json();
+    } catch (err) {
+      return { reason: 'transient' };
+    }
 
-    const outcome = await this._refresh();
-    if (outcome === 'ok') return { token: localStorage.getItem(KEY.token) };
-    return { reason: outcome === 'revoked' ? 'unauthenticated' : 'transient' };
+    if (!view.ok) {
+      this._access = null;
+      return { reason: view.reason === 'transient' ? 'transient' : 'unauthenticated' };
+    }
+
+    // A grant for another app, or one missing a scope this build needs, can't
+    // do the job. Show sign-in — but leave the server's grant alone: signing
+    // in replaces it, and until then it hurts nothing.
+    if (view.clientId !== this.clientId) {
+      console.warn('The stored Spotify grant belongs to a different client id; sign-in needed.');
+      return { reason: 'unauthenticated' };
+    }
+    if (grantIsInsufficient(view.scopes, this.scopes)) {
+      console.warn('The stored Spotify grant is missing a required scope; sign-in needed.');
+      return { reason: 'unauthenticated' };
+    }
+
+    this._accept(view);
+    return { token: view.accessToken };
   }
 
   async getToken() {
@@ -238,19 +214,11 @@ export class SpotifyClient {
     return token || null;
   }
 
-  isAuthenticated() {
-    const hasToken = Boolean(
-      localStorage.getItem(KEY.refresh) || localStorage.getItem(KEY.refreshBackup)
-    );
-    if (!hasToken) return false;
-
-    // Only a grant that is actually missing a scope is worth throwing away.
-    if (grantIsInsufficient(localStorage.getItem(KEY.scopes), this.scopes)) {
-      console.warn('Stored Spotify grant is missing a required scope; re-auth needed.');
-      this.logout(false);
-      return false;
-    }
-    return true;
+  /** Resolves 'ok' | 'unauthenticated' | 'transient'. Runs the legacy handover first. */
+  async checkSession() {
+    await this._handOverLegacyGrant();
+    const { token, reason } = await this._ensureToken();
+    return token ? 'ok' : reason;
   }
 
   // ── Request plumbing ────────────────────────────────────────────────────
@@ -282,9 +250,9 @@ export class SpotifyClient {
     }
 
     if (response.status === 401 && retry) {
-      const outcome = await this._refresh();
-      if (outcome === 'ok') return this._call(path, { method, retry: false });
-      if (outcome === 'transient') return { ok: false, offline: true, error: 'token refresh failed' };
+      const again = await this._ensureToken({ stale: token });
+      if (again.token) return this._call(path, { method, retry: false });
+      if (again.reason === 'transient') return { ok: false, offline: true, error: 'token refresh failed' };
       return { ok: false, unauthenticated: true };
     }
 

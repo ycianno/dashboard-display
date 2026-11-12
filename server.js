@@ -7,8 +7,13 @@ const path = require('path');
 const { getSnapshot } = require('./server/infra');
 const { getForge, setCheck } = require('./server/forge');
 const { buildDemoSnapshot } = require('./server/demo');
+const { createSpotifyAuth } = require('./server/spotify-auth');
 
 const ROOT = __dirname;
+
+// Local state the server writes at runtime. Git-ignored, never deployed over,
+// and never served as a static file.
+const STATE_DIR = path.join(ROOT, 'state');
 
 // server.config.js is optional — without it the dashboard still runs, and the
 // Infrastructure view shows setup instructions instead of metrics.
@@ -26,6 +31,34 @@ try {
 
 const PORT = config.port || 8080;
 const HOST = config.host || '0.0.0.0';
+
+const spotifyAuth = createSpotifyAuth({ file: path.join(STATE_DIR, 'spotify-session.json') });
+
+const LOOPBACK_ADDRESSES = new Set(['127.0.0.1', '::1', '::ffff:127.0.0.1']);
+const LOOPBACK_HOSTS = new Set(['127.0.0.1', 'localhost', '[::1]']);
+
+/**
+ * The Spotify routes hand out a token that can control your playback, so they
+ * answer only this machine — the kiosk, or a laptop arriving through an SSH
+ * tunnel, which reaches us from 127.0.0.1 too — whatever `host` is set to.
+ *
+ * The Host check closes DNS rebinding: a web page that points its own domain
+ * at 127.0.0.1 connects from loopback, but still sends its own Host header.
+ */
+function isLocalRequest(req) {
+  if (!LOOPBACK_ADDRESSES.has(req.socket.remoteAddress)) return false;
+  const host = String(req.headers.host || '').replace(/:\d+$/, '').toLowerCase();
+  return LOOPBACK_HOSTS.has(host);
+}
+
+/**
+ * Writes must arrive as JSON. Another site can POST a plain form at us without
+ * asking; it cannot send `application/json` cross-origin without a preflight
+ * this server never approves.
+ */
+function isJsonRequest(req) {
+  return /^application\/json\b/i.test(String(req.headers['content-type'] || ''));
+}
 
 const MIME = {
   '.html': 'text/html; charset=utf-8',
@@ -125,6 +158,37 @@ async function handleApi(req, res, url) {
       sendJson(res, 200, snapshot);
     } catch (err) {
       sendJson(res, 500, { configured: true, error: err.message, summary: { alerts: [], level: 'crit' } });
+    }
+    return true;
+  }
+
+  // ── Spotify sign-in ───────────────────────────────────────────────────
+  if (url.pathname.startsWith('/api/spotify/')) {
+    if (!isLocalRequest(req)) {
+      sendJson(res, 403, { ok: false, error: 'Spotify sign-in is only available on this machine.' });
+      return true;
+    }
+
+    if (url.pathname === '/api/spotify/token' && req.method === 'GET') {
+      sendJson(res, 200, await spotifyAuth.getToken({ stale: url.searchParams.get('stale') }));
+      return true;
+    }
+
+    const writes = {
+      '/api/spotify/session': (body) => spotifyAuth.startSession(body),
+      '/api/spotify/adopt': (body) => spotifyAuth.adopt(body)
+    };
+    const write = writes[url.pathname];
+    if (!write) return false;
+
+    if (req.method !== 'POST' || !isJsonRequest(req)) {
+      sendJson(res, 405, { ok: false, error: 'POST application/json only' });
+      return true;
+    }
+    try {
+      sendJson(res, 200, await write(await readJsonBody(req)));
+    } catch (err) {
+      sendJson(res, 400, { ok: false, reason: 'bad-request', error: err.message });
     }
     return true;
   }

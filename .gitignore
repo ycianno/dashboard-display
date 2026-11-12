@@ -4,3 +4,6 @@ node_modules/
 
 # Where this particular panel lives. Never published.
 scripts/deploy.env
+
+# Runtime state the server writes: the Spotify grant lives here.
+state/
