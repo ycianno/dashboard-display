@@ -164,23 +164,55 @@ async function handleApi(req, res, url) {
   return false;
 }
 
+// What the browser is allowed to load, and nothing else. This used to be a
+// list of things to refuse, compared case-sensitively — so on a
+// case-insensitive disk (Windows, macOS) `/Server.Config.js` served the API
+// tokens, and the Spotify grant in state/ would have gone the same way. Every
+// other casing, 8.3 short name or trailing-dot spelling of a secret is just
+// one more thing a refuse-list has to know about; an allowlist doesn't.
+const PUBLIC_FILES = new Set(['index.html', 'config.js']);
+const PUBLIC_DIRS = new Set(['css', 'js']);
+
+function isPublic(relative) {
+  const segments = relative.split(path.sep);
+  // No dotfiles, and nothing Windows would quietly normalise ("js." → "js").
+  if (segments.some((s) => !s || s.startsWith('.') || /[. ]$/.test(s))) return false;
+  if (segments.length === 1) return PUBLIC_FILES.has(segments[0].toLowerCase());
+  return PUBLIC_DIRS.has(segments[0].toLowerCase());
+}
+
+function sendText(res, status, text) {
+  res.writeHead(status, { 'Content-Type': 'text/plain' });
+  res.end(text);
+}
+
 function serveStatic(req, res, url) {
-  const decoded = decodeURIComponent(url.pathname);
+  let decoded;
+  try {
+    decoded = decodeURIComponent(url.pathname);
+  } catch (err) {
+    sendText(res, 400, 'Bad request');
+    return;
+  }
+  // A NUL byte makes fs throw synchronously, which used to take the whole
+  // server down from a single request.
+  if (decoded.includes('\0')) {
+    sendText(res, 400, 'Bad request');
+    return;
+  }
+
   const relative = decoded === '/' ? 'index.html' : decoded.replace(/^\/+/, '');
   const filePath = path.resolve(ROOT, relative);
 
   // Refuse anything that resolves outside the project directory. The previous
   // version joined the raw request path, so `/../../etc/passwd` escaped root.
   if (filePath !== ROOT && !filePath.startsWith(ROOT + path.sep)) {
-    res.writeHead(403, { 'Content-Type': 'text/plain' });
-    res.end('Forbidden');
+    sendText(res, 403, 'Forbidden');
     return;
   }
 
-  // Never hand the browser the server-side config — it holds API tokens.
-  if (path.basename(filePath) === 'server.config.js' || filePath.startsWith(path.join(ROOT, 'server') + path.sep)) {
-    res.writeHead(403, { 'Content-Type': 'text/plain' });
-    res.end('Forbidden');
+  if (!isPublic(path.relative(ROOT, filePath))) {
+    sendText(res, 403, 'Forbidden');
     return;
   }
 
@@ -212,7 +244,14 @@ const server = http.createServer((req, res) => {
     return;
   }
 
-  serveStatic(req, res, url);
+  // Last line of defence: one malformed request must never stop the display.
+  try {
+    serveStatic(req, res, url);
+  } catch (err) {
+    console.error('Static request failed:', err.message);
+    if (!res.headersSent) sendText(res, 500, 'Server error');
+    else res.end();
+  }
 });
 
 server.listen(PORT, HOST, () => {
