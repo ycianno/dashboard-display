@@ -29,6 +29,7 @@ default page.
 - **Now playing** — album art, track, artist, album, progress
 - **Full transport** — play/pause, skip, previous (restarts the track if you're >4s in), shuffle, repeat
 - **Seek** — drag anywhere on the progress bar
+- **Liked Songs** — a heart on the music page and in the mini player saves or removes the current song, and picks up likes made on your phone within half a minute. A **Liked** tab lists your latest 50 liked songs; tap one to play the list from there
 - **Volume + device switching** — move playback to any Spotify Connect device from the display
 - **Synced lyrics** — LRC-timestamped lyrics from [LRCLIB](https://lrclib.net) that scroll and highlight in time, with a single-line cue under the track title
 - **Immersive mode** — tap the artwork to drop the chrome and go full-screen
@@ -248,7 +249,14 @@ browser files as ES modules.
 |---|---|
 | `user-read-currently-playing` | Current track, artwork, progress |
 | `user-read-playback-state` | Play state, shuffle, repeat, volume, devices |
-| `user-modify-playback-state` | Play, pause, skip, seek, volume, shuffle, repeat, transfer |
+| `user-modify-playback-state` | Play, pause, skip, seek, volume, shuffle, repeat, transfer, play from the Liked tab |
+| `user-library-read` | Whether the current song is liked; the Liked tab |
+| `user-library-modify` | The heart button: save to and remove from Liked Songs |
+
+These are always requested, whatever `config.js` lists — `config.js` lives
+only on the panel and is never deployed over, so a scope a new feature needs
+can't wait for someone to edit it there. Adding one means one new sign-in
+(the tunnel works for that too).
 
 PKCE means no client secret. The grant lives in `state/spotify-session.json`
 on the server and refreshes automatically. Adding a scope to the list makes

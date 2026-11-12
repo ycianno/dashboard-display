@@ -619,3 +619,72 @@
 .app.immersive .track-artist { font-size: var(--t-xl); }
 .app.immersive .lyric-cue { font-size: var(--t-xl); min-height: 2rem; }
 .app.immersive .aux-row { display: none; }
+
+/* ── Heart (Liked Songs) ───────────────────────────────────────────────────
+   Both hearts stay in the DOM, stacked in one grid cell, and cross-fade:
+   the incoming one scales up from 0.25 out of a 4px blur while the outgoing
+   one does the reverse. A transition, not keyframes, so a double tap simply
+   reverses mid-flight. Filled + accent colour is the static cue; under
+   reduced motion the global rule in base.css makes the swap instant. */
+.heart-btn { flex: none; }
+
+.heart-btn .ic {
+    grid-area: 1 / 1;
+    transition-property: opacity, transform, filter;
+    transition-duration: 300ms;
+    transition-timing-function: cubic-bezier(0.2, 0, 0, 1);
+}
+
+.heart-btn .heart-on,
+.heart-btn.liked .heart-off {
+    opacity: 0;
+    transform: scale(0.25);
+    filter: blur(4px);
+}
+
+.heart-btn.liked .heart-on {
+    opacity: 1;
+    transform: scale(1);
+    filter: blur(0);
+    color: var(--accent);
+}
+
+.heart-btn.liked { border-color: var(--accent-dim); }
+
+/* ── Liked tab ─────────────────────────────────────────────────────────── */
+.liked-head {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: var(--s-3);
+    padding: 0 0.6rem var(--s-2);
+    font-size: var(--t-xs);
+    color: var(--text-2);
+}
+
+.liked-head strong {
+    font-size: var(--t-sm);
+    color: var(--text-1);
+}
+
+button.queue-row {
+    width: 100%;
+    text-align: left;
+}
+
+.liked-row .queue-heart {
+    width: 0.95rem;
+    height: 0.95rem;
+    color: var(--accent);
+    flex-shrink: 0;
+}
+
+.liked-notice {
+    margin: 0 0.6rem var(--s-2);
+    padding: 0.55rem 0.7rem;
+    border-radius: var(--r-sm);
+    font-size: var(--t-xs);
+    color: var(--text-1);
+    background: var(--surface-2);
+    border: 1px solid var(--stroke-1);
+}

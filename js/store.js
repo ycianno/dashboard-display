@@ -43,6 +43,12 @@ export const playerStore = createStore({
   device: null,
   devices: [],
   queue: [],
+  // Whether the current track is in Liked Songs: true | false | null (unknown,
+  // or not a track — episodes can't be liked).
+  liked: null,
+  // The Liked tab. status: idle | loading | ready | error. `notice` is a
+  // one-line message when tapping a song couldn't start it.
+  likedTracks: { status: 'idle', items: [], total: 0, loadedAt: 0, notice: null },
   lyrics: { state: 'idle', synced: null, plain: null, trackId: null },
   // When the Spotify grant was made (ms), or null if unknown. Spotify ends
   // every grant six months on; main.js warns as that approaches.

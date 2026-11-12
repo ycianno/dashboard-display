@@ -2,7 +2,7 @@
 // Dock mini player — transport controls that follow you onto other pages
 // ══════════════════════════════════════════════════════════════════════════
 
-import { $ } from './util.js';
+import { $, paintHeart } from './util.js';
 import { playerStore } from './store.js';
 import { actions } from './player.js';
 
@@ -24,6 +24,12 @@ export function initMiniPlayer({ onOpen }) {
   el.play.addEventListener('click', (event) => {
     event.stopPropagation();
     actions.toggle();
+  });
+
+  const like = $('#mini-like');
+  like.addEventListener('click', (event) => {
+    event.stopPropagation();
+    actions.toggleLike();
   });
 
   el.next.addEventListener('click', (event) => {
@@ -55,6 +61,7 @@ export function initMiniPlayer({ onOpen }) {
     if (el.artist.textContent !== artists) el.artist.textContent = artists;
 
     el.playIcon.setAttribute('href', state.isPlaying ? '#i-pause' : '#i-play');
+    paintHeart(like, state);
   });
 
   return {

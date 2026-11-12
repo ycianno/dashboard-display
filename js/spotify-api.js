@@ -223,7 +223,7 @@ export class SpotifyClient {
 
   // ── Request plumbing ────────────────────────────────────────────────────
 
-  async _call(path, { method = 'GET', retry = true } = {}) {
+  async _call(path, { method = 'GET', body = null, retry = true } = {}) {
     if (Date.now() < this._retryAfter) return { ok: false, rateLimited: true };
 
     const auth = await this._ensureToken();
@@ -235,9 +235,12 @@ export class SpotifyClient {
 
     let response;
     try {
+      const headers = { Authorization: `Bearer ${token}` };
+      if (body) headers['Content-Type'] = 'application/json';
       response = await fetch(`${API}${path}`, {
         method,
-        headers: { Authorization: `Bearer ${token}` }
+        headers,
+        body: body ? JSON.stringify(body) : undefined
       });
     } catch (err) {
       return { ok: false, offline: true, error: err.message };
@@ -251,7 +254,7 @@ export class SpotifyClient {
 
     if (response.status === 401 && retry) {
       const again = await this._ensureToken({ stale: token });
-      if (again.token) return this._call(path, { method, retry: false });
+      if (again.token) return this._call(path, { method, body, retry: false });
       if (again.reason === 'transient') return { ok: false, offline: true, error: 'token refresh failed' };
       return { ok: false, unauthenticated: true };
     }
@@ -286,6 +289,35 @@ export class SpotifyClient {
 
   getDevices() {
     return this._call('/me/player/devices');
+  }
+
+  // ── Liked Songs ─────────────────────────────────────────────────────────
+  // February 2026 replaced the per-type /me/tracks/contains, PUT and DELETE
+  // endpoints with generic /me/library ones that take Spotify URIs (max 40).
+  // Listing liked songs is still GET /me/tracks.
+
+  /** Resolves { ok, data: [bool, ...] } in the order of `uris`. */
+  libraryContains(uris) {
+    const list = uris.slice(0, 40).map(encodeURIComponent).join(',');
+    return this._call(`/me/library/contains?uris=${list}`);
+  }
+
+  saveToLibrary(uri) {
+    return this._call(`/me/library?uris=${encodeURIComponent(uri)}`, { method: 'PUT' });
+  }
+
+  removeFromLibrary(uri) {
+    return this._call(`/me/library?uris=${encodeURIComponent(uri)}`, { method: 'DELETE' });
+  }
+
+  getLikedTracks({ limit = 50, offset = 0 } = {}) {
+    return this._call(`/me/tracks?limit=${limit}&offset=${offset}`);
+  }
+
+  /** Starts playback of a list of track URIs, optionally on a given device. */
+  playUris(uris, deviceId = null) {
+    const query = deviceId ? `?device_id=${encodeURIComponent(deviceId)}` : '';
+    return this._call(`/me/player/play${query}`, { method: 'PUT', body: { uris } });
   }
 
   // ── Writes ──────────────────────────────────────────────────────────────

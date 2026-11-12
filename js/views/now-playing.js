@@ -2,7 +2,7 @@
 // Now Playing view
 // ══════════════════════════════════════════════════════════════════════════
 
-import { $, esc, formatDuration, clamp, icon } from '../util.js';
+import { $, esc, formatDuration, clamp, icon, paintHeart } from '../util.js';
 import { playerStore } from '../store.js';
 import { actions } from '../player.js';
 import { activeLineIndex } from '../lyrics.js';
@@ -42,10 +42,12 @@ export function initNowPlaying({ onToggleImmersive }) {
     volFill: $('#vol-fill'),
     volIcon: $('#vol-icon'),
     deviceBtn: $('#btn-device'),
+    btnLike: $('#btn-like'),
     deviceName: $('#device-name'),
 
     tabs: Array.from(document.querySelectorAll('.panel-tab')),
     queue: $('#pane-queue'),
+    liked: $('#pane-liked'),
     lyrics: $('#pane-lyrics'),
     devices: $('#pane-devices')
   };
@@ -60,6 +62,7 @@ export function initNowPlaying({ onToggleImmersive }) {
   let lastQueueKey = null;
   let lastLyricsKey = null;
   let lastDevicesKey = null;
+  let lastLikedKey = null;
   let lastLyricIndex = -1;
   let lastStatus = null;
   let seeking = false;
@@ -80,6 +83,12 @@ export function initNowPlaying({ onToggleImmersive }) {
   el.btnShuffle.addEventListener('click', () => actions.toggleShuffle());
   el.btnRepeat.addEventListener('click', () => actions.cycleRepeat());
   el.artFrame.addEventListener('click', () => onToggleImmersive());
+  el.btnLike.addEventListener('click', () => actions.toggleLike());
+
+  el.liked.addEventListener('click', (event) => {
+    const row = event.target.closest('.liked-row');
+    if (row) actions.playLiked(Number(row.dataset.index));
+  });
 
   // ── Scrub bar ───────────────────────────────────────────────────────────
   function ratioFromEvent(event, node) {
@@ -156,6 +165,7 @@ export function initNowPlaying({ onToggleImmersive }) {
         pane.classList.toggle('active', pane.id === `pane-${tab.dataset.pane}`);
       });
       if (tab.dataset.pane === 'devices') actions.refreshDevices();
+      if (tab.dataset.pane === 'liked') actions.loadLikedTracks();
       if (tab.dataset.pane === 'lyrics') lastLyricIndex = -1; // force a re-scroll
     });
   });
@@ -289,6 +299,68 @@ export function initNowPlaying({ onToggleImmersive }) {
     el.lyricCue.classList.toggle('visible', Boolean(text));
   }
 
+  function renderLiked(state) {
+    const list = state.likedTracks;
+    const signedOut = state.status === 'unauthenticated';
+    const key = [
+      signedOut,
+      list.status,
+      list.notice,
+      list.total,
+      list.items.map((t) => t.id).join('|'),
+      state.track?.id,
+      state.isPlaying
+    ].join('#');
+    if (key === lastLikedKey) return;
+    lastLikedKey = key;
+
+    if (signedOut) {
+      el.liked.innerHTML = placeholder('heart', 'Liked Songs', 'Connect Spotify to see your liked songs here.');
+      return;
+    }
+    if (!list.items.length && (list.status === 'idle' || list.status === 'loading')) {
+      el.liked.innerHTML = `
+        <div class="queue scroll">
+          ${Array.from({ length: 6 }, () => '<div class="skeleton" style="height:2.7rem;margin:0.5rem 0.6rem"></div>').join('')}
+        </div>`;
+      return;
+    }
+    if (!list.items.length) {
+      el.liked.innerHTML = list.status === 'error'
+        ? placeholder('heart', 'Liked songs didn’t load', 'Spotify didn’t answer. Open this tab again in a moment.')
+        : placeholder('heart', 'No liked songs yet', 'Tap the heart on a song and it shows up here.');
+      return;
+    }
+
+    const shown = list.items.length < list.total ? `latest ${list.items.length} of ${list.total}` : `${list.total} songs`;
+    el.liked.innerHTML = `
+      <div class="queue scroll">
+        <div class="liked-head"><strong>Liked Songs</strong><span class="tnum">${shown}</span></div>
+        ${list.notice ? `<div class="liked-notice">${esc(list.notice)}</div>` : ''}
+        ${list.items.map((track, i) => likedRow(track, i, state)).join('')}
+      </div>`;
+  }
+
+  function likedRow(track, index, state) {
+    const now = state.track?.id === track.id;
+    const art = track.thumbUrl || track.artUrl;
+    return `
+      <button class="queue-row liked-row pressable ${now ? 'now' : ''}" data-index="${index}">
+        ${
+          now
+            ? `<span class="queue-idx"><span class="eq ${state.isPlaying ? '' : 'paused'}"><i></i><i></i><i></i></span></span>`
+            : `<span class="queue-idx">${index + 1}</span>`
+        }
+        ${art ? `<img src="${esc(art)}" alt="">` : ''}
+        <span class="queue-meta">
+          <span class="t truncate">${esc(track.name)}</span>
+          <span class="a truncate">${esc(track.artists.join(', '))}</span>
+        </span>
+        ${icon('heart-fill', 'ic queue-heart')}
+        <span class="queue-dur tnum">${formatDuration(track.durationMs)}</span>
+      </button>`;
+  }
+
   function renderDevices(state) {
     const key = state.devices.map((d) => `${d.id}:${d.active}`).join('|');
     if (key === lastDevicesKey) return;
@@ -353,6 +425,7 @@ export function initNowPlaying({ onToggleImmersive }) {
       el.backdropArt.classList.remove('visible');
       lastArtUrl = null;
       renderQueue(state);
+      renderLiked(state);
       renderLyrics(state);
       renderDevices(state);
       return;
@@ -399,7 +472,10 @@ export function initNowPlaying({ onToggleImmersive }) {
     const deviceLabel = state.device ? state.device.name : 'No device';
     if (el.deviceName.textContent !== deviceLabel) el.deviceName.textContent = deviceLabel;
 
+    paintHeart(el.btnLike, state);
+
     renderQueue(state);
+    renderLiked(state);
     renderLyrics(state);
     syncLyrics(state);
     renderDevices(state);

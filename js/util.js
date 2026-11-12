@@ -152,3 +152,22 @@ export function createPoller(fn, { interval, maxInterval = interval * 12 } = {})
 export function icon(name, className = 'ic') {
   return `<svg class="${className}" aria-hidden="true"><use href="#i-${name}"></use></svg>`;
 }
+
+/**
+ * Draws a heart button from player state. Shared by the music page and the
+ * mini player so the two can never disagree. Runs on every store update
+ * (4 Hz while playing), so it only touches the DOM when something changed.
+ */
+export function paintHeart(button, state) {
+  const canLike = Boolean(state.track && state.track.type === 'track' && state.track.uri);
+  if (button.hidden === canLike) button.hidden = !canLike;
+  if (!canLike) return;
+
+  const liked = state.liked === true;
+  button.classList.toggle('liked', liked);
+  const pressed = String(liked);
+  if (button.getAttribute('aria-pressed') !== pressed) {
+    button.setAttribute('aria-pressed', pressed);
+    button.setAttribute('aria-label', liked ? 'Remove from Liked Songs' : 'Save to Liked Songs');
+  }
+}

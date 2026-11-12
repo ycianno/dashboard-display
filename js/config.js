@@ -6,15 +6,24 @@
 // or partial config.js still boots.
 // ══════════════════════════════════════════════════════════════════════════
 
+// Scopes the code itself depends on. They are added to whatever config.js
+// lists, because config.js lives only on the panel and is never deployed over:
+// a feature that needs a new scope would otherwise ship to a display whose
+// config can't grant it, and fail there quietly.
+const REQUIRED_SCOPES = [
+  'user-read-currently-playing',
+  'user-read-playback-state',
+  'user-modify-playback-state',
+  // The heart button and the Liked tab.
+  'user-library-read',
+  'user-library-modify'
+];
+
 const DEFAULTS = {
   spotify: {
     clientId: '',
     redirectUri: 'http://127.0.0.1:8080/',
-    scopes: [
-      'user-read-currently-playing',
-      'user-read-playback-state',
-      'user-modify-playback-state'
-    ].join(' ')
+    scopes: REQUIRED_SCOPES.join(' ')
   },
 
   location: {
@@ -97,6 +106,9 @@ export const CONFIG = merge(DEFAULTS, {
   location: merge(legacyLocation, raw.location || {})
 });
 
+CONFIG.spotify.scopes = [
+  ...new Set([...String(CONFIG.spotify.scopes || '').split(/\s+/).filter(Boolean), ...REQUIRED_SCOPES])
+].join(' ');
 
 // Guard against the exact mismatch this dashboard used to ship with: a place
 // name that disagrees with the coordinates being queried. If a config supplies

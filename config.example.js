@@ -12,7 +12,9 @@ window.CONFIG = {
     // Must match the redirect URI registered on the Spotify app exactly,
     // trailing slash included.
     redirectUri: 'http://127.0.0.1:8080/',
-    scopes: 'user-read-currently-playing user-read-playback-state user-modify-playback-state'
+    // Optional. The scopes the dashboard itself needs are always requested;
+    // list extra ones here only if you add a feature that needs them.
+    scopes: 'user-read-currently-playing user-read-playback-state user-modify-playback-state user-library-read user-library-modify'
   },
 
   // Weather location. `label` is what the dashboard displays.
