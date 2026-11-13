@@ -91,6 +91,11 @@ body.kiosk * {
     opacity: 0.4;
 }
 
+/* The Today page is The Forge's ember palette; a cover's colour under it
+   fights the fire, so it drops to a trace there. */
+body:has(.app[data-view='forge']) .backdrop-art.visible { opacity: 0.1; }
+body:has(.app[data-view='forge']) .orb-a { background: #f97316; }
+
 .orb {
     position: fixed;
     border-radius: 50%;

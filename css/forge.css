@@ -90,7 +90,7 @@
 }
 
 .fg-bar.thin { flex-basis: 0.3rem; height: 0.3rem; }
-.fg-bar.wide { flex-basis: 0.7rem; height: 0.7rem; }
+.fg-bar.wide { flex-basis: 0.8rem; height: 0.8rem; }
 .fg-bar.attr > i { background: var(--tag); }
 .fg-bar.hp > i { background: linear-gradient(90deg, #ef4444, var(--fire-3)); }
 
@@ -119,25 +119,49 @@
     pointer-events: none;
 }
 
+.fg-char-top {
+    position: relative;
+    display: flex;
+    align-items: center;
+    gap: var(--s-4);
+    align-self: stretch;
+}
+
+.fg-char-id {
+    display: flex;
+    flex-direction: column;
+    gap: var(--s-2);
+    min-width: 0;
+}
+
+.fg-xp-to {
+    font-size: var(--t-sm);
+    font-weight: 700;
+    color: var(--fire-1);
+}
+
+/* The level orb wears its XP as a ring: the border is a conic sweep that
+   fills to this level's progress, so the orb and the bar are one figure. */
 .fg-orb {
     position: relative;
     display: grid;
     place-content: center;
     justify-items: center;
-    width: 5.6rem;
-    height: 5.6rem;
-    margin-bottom: var(--s-2);
+    flex-shrink: 0;
+    width: 6.2rem;
+    height: 6.2rem;
     border-radius: 50%;
+    border: 0.34rem solid transparent;
     background:
-        radial-gradient(circle at 34% 26%, rgba(251, 191, 36, 0.5), transparent 66%),
-        rgba(0, 0, 0, 0.45);
-    border: 2px solid var(--fire-2);
-    box-shadow: 0 0 2.2rem -0.4rem var(--fire-glow), inset 0 0 1.4rem rgba(249, 115, 22, 0.24);
+        radial-gradient(circle at 34% 26%, rgba(251, 191, 36, 0.42), transparent 66%) padding-box,
+        linear-gradient(rgba(14, 9, 5, 0.92), rgba(14, 9, 5, 0.92)) padding-box,
+        conic-gradient(var(--fire-1) 0%, var(--fire-3) calc(var(--pct, 0) * 1%), rgba(255, 255, 255, 0.08) 0) border-box;
+    box-shadow: 0 0 2.4rem -0.4rem var(--fire-glow), inset 0 0 1.4rem rgba(249, 115, 22, 0.22);
 }
 
 .fg-orb .lvl {
     font-family: var(--font-display);
-    font-size: var(--t-2xl);
+    font-size: 2.4rem;
     font-weight: 800;
     line-height: 1;
     color: var(--fire-1);
@@ -155,7 +179,7 @@
 .fg-rank {
     position: relative;
     font-family: var(--font-display);
-    font-size: var(--t-xl);
+    font-size: var(--t-2xl);
     font-weight: 800;
     line-height: 1.05;
     letter-spacing: -0.01em;
@@ -285,7 +309,7 @@
 
 .fg-shape-svg .labels text {
     font-family: var(--font-sans);
-    font-size: 11px;
+    font-size: 12.5px;
     font-weight: 800;
     letter-spacing: 0.06em;
 }
@@ -341,16 +365,57 @@
     gap: var(--s-3);
 }
 
-.fg-boss-head .hp {
+/* The HP is the boss card's number, so it is the size of one. */
+.fg-boss-hp {
+    position: relative;
+    display: flex;
+    align-items: baseline;
+    gap: var(--s-2);
+    margin-top: auto;
+}
+
+.fg-boss-hp .n {
     font-family: var(--font-display);
-    font-size: var(--t-lg);
+    font-size: clamp(3rem, 4.6vw, 4.4rem);
     font-weight: 800;
+    line-height: 0.9;
+    letter-spacing: -0.04em;
+    color: #fb7a4b;
+    text-shadow: 0 0 2rem rgba(239, 68, 68, 0.35);
+}
+
+.fg-boss-hp .n small {
+    font-size: 0.45em;
+    letter-spacing: 0;
     color: var(--fire-3);
+}
+
+.fg-boss-hp .k {
+    font-size: var(--t-xs);
+    font-weight: 800;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--text-3);
+}
+
+/* Ten segments, like a health bar in the game, not a progress meter. */
+.fg-boss .fg-bar.hp {
+    flex-basis: 0.85rem;
+    height: 0.85rem;
+    border-radius: var(--r-xs);
+}
+
+.fg-boss .fg-bar.hp::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: repeating-linear-gradient(90deg, transparent 0 calc(10% - 3px), rgba(10, 6, 3, 0.9) calc(10% - 3px) 10%);
+    pointer-events: none;
 }
 
 .fg-boss-name {
     font-family: var(--font-display);
-    font-size: var(--t-2xl);
+    font-size: clamp(1.8rem, 2.6vw, 2.4rem);
     font-weight: 800;
     line-height: 1.1;
     letter-spacing: -0.01em;
@@ -372,14 +437,13 @@
     position: relative;
     display: flex;
     align-items: center;
-    gap: var(--s-3);
+    gap: var(--s-2);
 }
 
 /* The taunt sits at the foot, in the boss's own voice. It is the one piece of
    the game's writing that survives onto the wall, so it gets the room. */
 .fg-taunt {
     position: relative;
-    margin-top: auto;
     padding-top: var(--s-3);
     border-top: 1px solid var(--forge-stroke);
     font-size: var(--t-sm);
@@ -388,7 +452,7 @@
     color: var(--text-3);
 }
 
-.fg-boss.down .fg-boss-head .hp { color: var(--ok); }
+.fg-boss.down .fg-boss-hp .n { color: var(--ok); text-shadow: none; }
 .fg-boss.down .fg-bar.hp > i { background: var(--ok); }
 
 /* ── Cabinet ─────────────────────────────────────────────────────────────── */
@@ -515,14 +579,15 @@
 
 .fg-agenda-count .n {
     font-family: var(--font-display);
-    font-size: var(--t-2xl);
+    font-size: var(--t-3xl);
     font-weight: 800;
     line-height: 1;
     color: var(--fire-1);
 }
 
 .fg-agenda-count .cap {
-    font-size: var(--t-sm);
+    font-size: var(--t-md);
+    font-weight: 600;
     color: var(--text-2);
 }
 
@@ -530,7 +595,7 @@
 
 .fg-agenda-pct {
     font-family: var(--font-display);
-    font-size: var(--t-lg);
+    font-size: var(--t-xl);
     font-weight: 800;
     color: var(--fire-1);
 }
@@ -540,7 +605,7 @@
    and seeing your whole day from the doorway. */
 .fg-quests {
     display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(21rem, 1fr));
+    grid-template-columns: repeat(auto-fill, minmax(22rem, 1fr));
     /* Rows share whatever height is left rather than stacking at the top: on a
        touch panel the leftover space is better spent on bigger targets than on
        an empty strip under the last quest. Past `min`, the list scrolls. */
@@ -570,7 +635,7 @@
 .fg-quest {
     position: relative;
     display: grid;
-    grid-template-columns: 4.4rem 2.2rem minmax(0, 1fr) auto;
+    grid-template-columns: 5.2rem 2.6rem minmax(0, 1fr) auto;
     align-items: center;
     gap: var(--s-2) var(--s-3);
     width: 100%;
@@ -597,11 +662,11 @@
     position: absolute;
     top: 0;
     right: 0;
-    padding: 0.1rem 0.45rem;
+    padding: 0.15rem 0.55rem;
     border-radius: 0 var(--r-md) 0 var(--r-sm);
     background: var(--fire-2);
     color: var(--fire-ink);
-    font-size: 0.58rem;
+    font-size: 0.64rem;
     font-weight: 800;
     letter-spacing: 0.12em;
     text-transform: uppercase;
@@ -609,11 +674,13 @@
 
 .fg-quest:active { background: rgba(245, 158, 11, 0.1); }
 
+/* Read from the doorway: the hour is the quest's second-most useful fact. */
 .fg-when {
-    font-family: var(--font-mono);
-    font-size: 0.68rem;
-    font-weight: 600;
-    color: var(--text-3);
+    font-family: var(--font-display);
+    font-size: var(--t-md);
+    font-weight: 700;
+    font-variant-numeric: tabular-nums;
+    color: var(--text-2);
     white-space: nowrap;
 }
 
@@ -625,8 +692,8 @@
 .fg-tick {
     display: grid;
     place-items: center;
-    width: 2.4rem;
-    height: 2.4rem;
+    width: 2.6rem;
+    height: 2.6rem;
     border-radius: 0.7rem;
     border: 2px solid var(--stroke-2);
     color: transparent;
@@ -641,7 +708,7 @@
 }
 
 .fg-quest-main .t {
-    font-size: var(--t-md);
+    font-size: var(--t-lg);
     font-weight: 700;
     line-height: 1.2;
 }
@@ -659,7 +726,7 @@
 
 .fg-xp-gain {
     font-family: var(--font-display);
-    font-size: var(--t-sm);
+    font-size: var(--t-md);
     font-weight: 800;
     color: var(--fire-1);
 }

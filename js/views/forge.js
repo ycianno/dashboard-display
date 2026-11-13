@@ -161,19 +161,19 @@ function renderSheet(summary) {
 
   return `
     <div class="fg-char card">
-      <div class="fg-orb">
-        <span class="lvl tnum">${p.level}</span>
-        <span class="cap">Level</span>
-      </div>
-
-      <div class="fg-rank">
-        ${esc(p.rank.name)} <span class="tier">${esc(p.rank.tier)}</span>
-      </div>
-      <div class="fg-pips">${pips}</div>
-
-      <div class="fg-xp">
-        ${bar(p.pct, 'fire')}
-        <span class="to tnum">${Math.max(0, p.xpForNext - p.xpIntoLevel)} XP to ${p.level + 1}</span>
+      <!-- The orb's ring is the XP bar, so there is no second bar under it. -->
+      <div class="fg-char-top">
+        <div class="fg-orb" style="--pct:${Math.max(0, Math.min(100, p.pct))}">
+          <span class="lvl tnum">${p.level}</span>
+          <span class="cap">Level</span>
+        </div>
+        <div class="fg-char-id">
+          <div class="fg-rank">
+            ${esc(p.rank.name)} <span class="tier">${esc(p.rank.tier)}</span>
+          </div>
+          <div class="fg-pips">${pips}</div>
+          <span class="fg-xp-to tnum">${Math.max(0, p.xpForNext - p.xpIntoLevel)} XP to level ${p.level + 1}</span>
+        </div>
       </div>
 
       <div class="fg-char-foot">
@@ -202,9 +202,20 @@ function renderSheet(summary) {
     <div class="fg-boss card ${boss.defeated ? 'down' : ''}">
       <div class="fg-boss-head">
         <span class="eyebrow">Week's boss</span>
-        <span class="hp tnum">${boss.defeated ? 'Defeated' : `${boss.hp}%`}</span>
+        ${
+          boss.defeated
+            ? ''
+            : `<span class="fg-weak">
+                 <span class="eyebrow">Weak to</span>
+                 ${attrTag(WEAK_ATTR[boss.weak] || boss.weak, WEAK_COLOR[boss.weak] || 'var(--fire-2)')}
+               </span>`
+        }
       </div>
       <div class="fg-boss-name">${esc(boss.name)}</div>
+      <div class="fg-boss-hp">
+        <span class="n tnum">${boss.defeated ? '0' : boss.hp}<small>%</small></span>
+        <span class="k">${boss.defeated ? 'Defeated' : 'HP left'}</span>
+      </div>
       <span class="fg-bar hp"><i style="width:${boss.hp}%"></i></span>
       <div class="fg-boss-note">
         ${
@@ -216,14 +227,6 @@ function renderSheet(summary) {
         }
       </div>
 
-      ${
-        boss.defeated
-          ? ''
-          : `<div class="fg-weak">
-               <span class="eyebrow">Weak to</span>
-               ${attrTag(WEAK_ATTR[boss.weak] || boss.weak, WEAK_COLOR[boss.weak] || 'var(--fire-2)')}
-             </div>`
-      }
       ${boss.taunt && !boss.defeated && boss.weakLeft ? `<div class="fg-taunt">“${esc(boss.taunt)}”</div>` : ''}
     </div>
 
