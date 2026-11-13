@@ -157,6 +157,9 @@
     height: 100%;
     min-width: 0;
     padding-inline: 1px;
+    /* A card's drop shadow reached across the page edge into the neighbour
+       and drew a faint vertical seam down the side of the current page. */
+    overflow: clip;
 }
 
 /* ── Page-turn cost ──────────────────────────────────────────────────────────

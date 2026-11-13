@@ -14,8 +14,13 @@ html,
 body {
     height: 100%;
     overflow: hidden;
-    background: var(--bg-deep);
 }
+
+/* Only the root paints a colour. With html and body both painted, body's own
+   box covered the negative-z ambient layers (.backdrop, .backdrop-art, the
+   orbs), so the blurred cover and the colour drift never reached the screen. */
+html { background: var(--bg-deep); }
+body { background: transparent; }
 
 body {
     font-family: var(--font-sans);
@@ -83,7 +88,7 @@ body.kiosk * {
 }
 
 .backdrop-art.visible {
-    opacity: 0.5;
+    opacity: 0.4;
 }
 
 .orb {
