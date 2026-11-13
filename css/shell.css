@@ -11,14 +11,23 @@
     gap: var(--s-5);
     flex-shrink: 0;
     height: var(--topbar-h);
-    padding: 0 var(--s-6);
-    background: var(--card-bg);
-    backdrop-filter: blur(34px) saturate(140%);
-    -webkit-backdrop-filter: blur(34px) saturate(140%);
-    border: 1px solid var(--stroke-1);
-    border-radius: var(--r-lg);
-    box-shadow: var(--card-shadow), var(--card-highlight);
+    /* No box. The bar is a strip of text over the backdrop, so the page's
+       cards are the only boxes on screen and read as the content. */
+    padding: 0 var(--s-3);
     transition: opacity var(--dur) var(--ease-out), transform var(--dur) var(--ease-out);
+}
+
+.topbar-left,
+.wx-chip {
+    transition: filter var(--dur) var(--ease-out);
+}
+
+/* The Overview is the clock and the forecast, so the bar's copies of both
+   step aside there instead of saying everything twice. A filter, not
+   `opacity`: main.js writes an inline opacity on the weather chip. */
+.app[data-view='overview'] .topbar-left,
+.app[data-view='overview'] .wx-chip {
+    filter: opacity(0);
 }
 
 .topbar-left,
@@ -36,7 +45,7 @@
 }
 
 .clock-mini .hh {
-    font-size: var(--t-2xl);
+    font-size: var(--t-3xl);
     font-weight: 700;
     letter-spacing: -0.02em;
     line-height: 1;
@@ -77,10 +86,7 @@
     display: flex;
     align-items: center;
     gap: var(--s-3);
-    padding: 0.4rem 0.9rem 0.4rem 0.6rem;
-    border-radius: var(--r-md);
-    background: var(--surface-1);
-    border: 1px solid var(--stroke-1);
+    padding: 0.4rem 0.4rem 0.4rem 0;
 }
 
 .wx-chip .wx-icon {
@@ -227,7 +233,7 @@
     color: var(--text-3);
     font-size: var(--t-sm);
     font-weight: 700;
-    transition: all var(--dur) var(--ease-out);
+    transition: background var(--dur) var(--ease-out), color var(--dur) var(--ease-out);
 }
 
 .pager-dot .ic {

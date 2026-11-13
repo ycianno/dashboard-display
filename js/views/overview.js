@@ -28,6 +28,45 @@ function clockTime(iso) {
   return `${hours}:${String(date.getMinutes()).padStart(2, '0')} ${suffix}`;
 }
 
+/**
+ * The hourly temperatures as a line, one point per column, so the shape of
+ * the day is seen rather than read off eight numbers.
+ */
+function tempCurve(hours) {
+  if (hours.length < 2) return '';
+  const temps = hours.map((h) => h.temp);
+  const lo = Math.min(...temps);
+  const hi = Math.max(...temps);
+  const span = hi - lo || 1;
+  const W = 100;
+  const H = 30;
+  const pts = temps.map((t, i) => [((i + 0.5) / temps.length) * W, 4 + (1 - (t - lo) / span) * (H - 8)]);
+  // A Catmull-Rom pass turned into cubic Béziers: smooth, and it passes
+  // through every reading.
+  let d = `M${pts[0][0].toFixed(2)},${pts[0][1].toFixed(2)}`;
+  for (let i = 0; i < pts.length - 1; i += 1) {
+    const p0 = pts[i - 1] || pts[i];
+    const p1 = pts[i];
+    const p2 = pts[i + 1];
+    const p3 = pts[i + 2] || p2;
+    const c1 = [p1[0] + (p2[0] - p0[0]) / 6, p1[1] + (p2[1] - p0[1]) / 6];
+    const c2 = [p2[0] - (p3[0] - p1[0]) / 6, p2[1] - (p3[1] - p1[1]) / 6];
+    d += ` C${c1.map((v) => v.toFixed(2)).join(',')} ${c2.map((v) => v.toFixed(2)).join(',')} ${p2[0].toFixed(2)},${p2[1].toFixed(2)}`;
+  }
+  const area = `${d} L${pts[pts.length - 1][0].toFixed(2)},${H} L${pts[0][0].toFixed(2)},${H} Z`;
+  return `
+    <svg class="wx-curve" viewBox="0 0 ${W} ${H}" preserveAspectRatio="none" aria-hidden="true">
+      <defs>
+        <linearGradient id="wx-curve-fill" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0" stop-color="#fbbf24" stop-opacity="0.28" />
+          <stop offset="1" stop-color="#fbbf24" stop-opacity="0" />
+        </linearGradient>
+      </defs>
+      <path class="area" d="${area}" />
+      <path class="line" d="${d}" vector-effect="non-scaling-stroke" />
+    </svg>`;
+}
+
 export function initOverview(context = {}) {
   const el = {
     time: $('#ov-time'),
@@ -65,6 +104,9 @@ export function initOverview(context = {}) {
     }
 
     const c = state.current;
+    // Eight hours fit the card at a readable size; the old strip scrolled
+    // sideways on a panel nobody can scroll, so the last columns were cut off.
+    const hours = state.hourly.slice(0, 8);
 
     el.sunrise.textContent = clockTime(c.sunrise);
     el.sunset.textContent = clockTime(c.sunset);
@@ -98,8 +140,8 @@ export function initOverview(context = {}) {
         <span class="wx-fact">${icon('sun', 'ic ic-sm')} UV ${c.uv}</span>
       </div>
 
-      <div class="wx-hours">
-        ${state.hourly
+      <div class="wx-hours" style="--cols:${hours.length}">
+        ${hours
           .map(
             (hour, i) => `
           <div class="wx-hour ${i === 0 ? 'now' : ''}" title="${esc(hour.condition)}">
@@ -110,6 +152,7 @@ export function initOverview(context = {}) {
           </div>`
           )
           .join('')}
+        ${tempCurve(hours)}
       </div>
 
       <div class="wx-days">
@@ -193,9 +236,11 @@ export function initOverview(context = {}) {
   // nowhere is worse than no tile.
   const enabled = new Set(CONFIG.dashboard.views || []);
 
-  function tile(id, body, { level = '' } = {}) {
+  function tile(id, body, { level = '', art = '' } = {}) {
     return `
       <button class="ov-tile pressable ${level}" data-view="${id}">
+        ${art ? `<span class="ov-tile-art" style="background-image:url('${esc(art)}')"></span>` : ''}
+        ${icon('chevron', 'ic ov-tile-go')}
         ${body}
       </button>`;
   }
@@ -293,7 +338,7 @@ export function initOverview(context = {}) {
             : `${icon('pause', 'ic ic-sm')} Paused`
         }</span>
         ${state.device ? `<span class="truncate">${esc(state.device.name)}</span>` : ''}
-      </div>`);
+      </div>`, { art: state.track.artUrl || '' });
   }
 
   function serversTile() {

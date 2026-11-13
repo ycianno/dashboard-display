@@ -32,7 +32,9 @@
     /* ── Text ─────────────────────────────────────────────────────────── */
     --text-1: #f3f6fc;
     --text-2: #9daabf;
-    --text-3: #5d6a82;
+    /* #5d6a82 was 3.6:1 on the background, under AA for the small caps it
+       is mostly used for. */
+    --text-3: #707d95;
 
     /* ── Accent (replaced at runtime from album artwork) ──────────────── */
     --accent: #1db954;

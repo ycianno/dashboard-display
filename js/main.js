@@ -204,10 +204,12 @@ function main() {
       miniPlayer.setActiveView(view.id);
       // Immersive only makes sense on the music page.
       if (view.id !== 'now-playing' && immersive) setImmersive(false);
+      app.dataset.view = view.id;
     }
   });
 
   miniPlayer.setActiveView(router.current.id);
+  app.dataset.view = router.current.id;
 
   $('#btn-immersive').addEventListener('click', () => {
     if (router.current.id !== 'now-playing') router.goToId('now-playing');
