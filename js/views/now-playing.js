@@ -9,7 +9,7 @@ import { activeLineIndex } from '../lyrics.js';
 import { extractPalette, applyPalette } from '../palette.js';
 import { createVisualizer } from '../visualizer.js';
 
-export function initNowPlaying({ onToggleImmersive }) {
+export function initNowPlaying({ onToggleImmersive, setLyricsFull = () => {} }) {
   const el = {
     stage: $('#np-stage'),
     unauth: $('#np-unauth'),
@@ -25,6 +25,27 @@ export function initNowPlaying({ onToggleImmersive }) {
     artist: $('#track-artist'),
     album: $('#track-album'),
     lyricCue: $('#lyric-cue'),
+    lyricNext: $('#lyric-next'),
+    lyricPeek: $('#lyric-peek'),
+    stateLabel: $('#np-state-label'),
+    eq: $('#np-eq'),
+    btnLyricsFull: $('#btn-lyrics-full'),
+
+    full: {
+      root: $('#lyr-full'),
+      scroll: $('#lyr-full-scroll'),
+      art: $('#lyr-full-art'),
+      title: $('#lyr-full-title'),
+      artist: $('#lyr-full-artist'),
+      now: $('#lyr-full-now'),
+      total: $('#lyr-full-total'),
+      fill: $('#lyr-full-fill'),
+      play: $('#lyr-full-play'),
+      playIcon: $('#lyr-full-play-icon'),
+      prev: $('#lyr-full-prev'),
+      next: $('#lyr-full-next'),
+      close: $('#lyr-full-close')
+    },
 
     progressHit: $('#progress-hit'),
     progressFill: $('#progress-fill'),
@@ -65,6 +86,9 @@ export function initNowPlaying({ onToggleImmersive }) {
   let lastLikedKey = null;
   let lastLyricIndex = -1;
   let lastStatus = null;
+  let lastFullKey = null;
+  let lastFullIndex = -2;
+  let lastFullArt = null;
   let seeking = false;
   let seekPreview = 0;
 
@@ -84,6 +108,27 @@ export function initNowPlaying({ onToggleImmersive }) {
   el.btnRepeat.addEventListener('click', () => actions.cycleRepeat());
   el.artFrame.addEventListener('click', () => onToggleImmersive());
   el.btnLike.addEventListener('click', () => actions.toggleLike());
+
+  // ── Full-screen lyrics ──────────────────────────────────────────────────
+  el.btnLyricsFull.addEventListener('click', () => setLyricsFull(true));
+  el.full.close.addEventListener('click', () => setLyricsFull(false));
+  el.full.play.addEventListener('click', () => actions.toggle());
+  el.full.prev.addEventListener('click', () => actions.previous());
+  el.full.next.addEventListener('click', () => actions.next());
+  el.lyrics.addEventListener('click', (event) => {
+    if (event.target.closest('.lyrics-expand')) setLyricsFull(true);
+  });
+
+  // Opening the layer has to re-centre the current line: a scroll issued
+  // while the layer was hidden had no box to scroll.
+  document.addEventListener('lyricsfull', (event) => {
+    el.full.root.setAttribute('aria-hidden', String(!event.detail));
+    lastFullIndex = -2;
+    if (event.detail) {
+      const state = playerStore.get();
+      syncFullLyrics(state, true);
+    }
+  });
 
   el.liked.addEventListener('click', (event) => {
     const row = event.target.closest('.liked-row');
@@ -251,15 +296,20 @@ export function initNowPlaying({ onToggleImmersive }) {
       return;
     }
 
+    const expand = `
+      <button class="lyrics-expand pressable" aria-label="Full-screen lyrics">
+        ${icon('expand', 'ic ic-sm')} Full screen
+      </button>`;
+
     if (lyrics.synced) {
-      el.lyrics.innerHTML = `<div class="lyrics scroll" id="lyrics-scroll">${lyrics.synced
+      el.lyrics.innerHTML = `${expand}<div class="lyrics scroll" id="lyrics-scroll">${lyrics.synced
         .map(
           (line, i) =>
             `<div class="lyrics-line" data-i="${i}">${line.text ? esc(line.text) : '&nbsp;'}</div>`
         )
         .join('')}</div>`;
     } else {
-      el.lyrics.innerHTML = `<div class="lyrics plain scroll" id="lyrics-scroll">${lyrics.plain
+      el.lyrics.innerHTML = `${expand}<div class="lyrics plain scroll" id="lyrics-scroll">${lyrics.plain
         .split('\n')
         .map((line) => `<div class="lyrics-line">${line ? esc(line) : '&nbsp;'}</div>`)
         .join('')}</div>`;
@@ -269,7 +319,9 @@ export function initNowPlaying({ onToggleImmersive }) {
   function syncLyrics(state) {
     const { lyrics, progressMs } = state;
     if (!lyrics.synced) {
-      el.lyricCue.classList.remove('visible');
+      el.lyricPeek.classList.remove('visible');
+      el.lyricCue.textContent = '';
+      el.lyricNext.textContent = '';
       return;
     }
 
@@ -294,9 +346,114 @@ export function initNowPlaying({ onToggleImmersive }) {
       }
     }
 
+    // The line being sung, and the next line that has words in it — an
+    // instrumental gap should preview what comes after it, not a blank.
     const text = index >= 0 ? lyrics.synced[index].text : '';
+    const upcoming = lyrics.synced.slice(index + 1).find((line) => line.text);
     el.lyricCue.textContent = text;
-    el.lyricCue.classList.toggle('visible', Boolean(text));
+    el.lyricNext.textContent = upcoming ? upcoming.text : '';
+    el.lyricPeek.classList.toggle('visible', Boolean(text || upcoming));
+  }
+
+  // ── Full-screen lyrics layer ────────────────────────────────────────────
+  function renderFullLyrics(state) {
+    const { lyrics } = state;
+    const key = `${lyrics.trackId}:${lyrics.state}:${lyrics.synced ? 'synced' : 'plain'}`;
+    if (key === lastFullKey) return;
+    lastFullKey = key;
+    lastFullIndex = -2;
+
+    const scroll = el.full.scroll;
+    scroll.classList.remove('plain', 'empty');
+
+    if (lyrics.synced) {
+      scroll.innerHTML = lyrics.synced
+        .map((line, i) => `<p class="lf-line ${line.text ? '' : 'gap'}" data-i="${i}">${line.text ? esc(line.text) : '♪'}</p>`)
+        .join('');
+      return;
+    }
+
+    if (lyrics.plain) {
+      scroll.classList.add('plain');
+      scroll.innerHTML = lyrics.plain
+        .split('\n')
+        .map((line) => `<p class="lf-line ${line ? '' : 'gap'}">${line ? esc(line) : '&nbsp;'}</p>`)
+        .join('');
+      return;
+    }
+
+    scroll.classList.add('empty');
+    const message = lyrics.state === 'loading'
+      ? ['Finding the words…', 'Asking LRCLIB for this track.']
+      : state.track
+        ? ['No lyrics for this one', 'LRCLIB has nothing for this track yet. Enjoy the music.']
+        : ['Nothing playing', 'Start a track on any Spotify device.'];
+    scroll.innerHTML = `
+      <div class="lf-empty">
+        ${icon('lyrics')}
+        <h2>${esc(message[0])}</h2>
+        <p>${esc(message[1])}</p>
+      </div>`;
+  }
+
+  function syncFullLyrics(state, force = false) {
+    if (!document.getElementById('app').classList.contains('lyrics-full') && !force) return;
+    const { lyrics, progressMs, durationMs } = state;
+    const scroll = el.full.scroll;
+
+    // Unsynced lyrics have no timestamps, so the page drifts down the song in
+    // proportion to how far through it we are — slow enough to read along.
+    if (!lyrics.synced) {
+      if (lyrics.plain && durationMs) {
+        const ratio = clamp(progressMs / durationMs, 0, 1);
+        scroll.scrollTop = ratio * (scroll.scrollHeight - scroll.clientHeight);
+      }
+      return;
+    }
+
+    const index = activeLineIndex(lyrics.synced, progressMs);
+    if (index === lastFullIndex && !force) return;
+    lastFullIndex = index;
+
+    const lines = scroll.querySelectorAll('.lf-line');
+    lines.forEach((node, i) => {
+      node.classList.toggle('current', i === index);
+      node.classList.toggle('past', i < index);
+      node.classList.toggle('soon', i === index + 1);
+    });
+
+    const active = lines[Math.max(0, index)];
+    if (active) {
+      // The current line rides a little above centre: the bottom bar covers
+      // the lower part of the screen, and the eye wants to read ahead.
+      scroll.scrollTo({
+        top: active.offsetTop - scroll.clientHeight * 0.36 + active.offsetHeight / 2,
+        behavior: force ? 'auto' : 'smooth'
+      });
+    }
+  }
+
+  function paintFullBar(state) {
+    const f = el.full;
+    if (!state.track) {
+      f.title.textContent = 'Nothing playing';
+      f.artist.textContent = '';
+      return;
+    }
+    const art = state.track.thumbUrl || state.track.artUrl;
+    if (art && art !== lastFullArt) {
+      lastFullArt = art;
+      f.art.src = art;
+    }
+    if (f.title.textContent !== state.track.name) f.title.textContent = state.track.name;
+    const artists = state.track.artists.join(', ');
+    if (f.artist.textContent !== artists) f.artist.textContent = artists;
+    const ratio = state.durationMs ? clamp(state.progressMs / state.durationMs, 0, 1) : 0;
+    f.fill.style.width = `${ratio * 100}%`;
+    f.now.textContent = formatDuration(state.progressMs);
+    const total = formatDuration(state.durationMs);
+    if (f.total.textContent !== total) f.total.textContent = total;
+    f.playIcon.setAttribute('href', state.isPlaying ? '#i-pause' : '#i-play');
   }
 
   function renderLiked(state) {
@@ -428,6 +585,8 @@ export function initNowPlaying({ onToggleImmersive }) {
       renderLiked(state);
       renderLyrics(state);
       renderDevices(state);
+      renderFullLyrics(state);
+      paintFullBar(state);
       return;
     }
 
@@ -452,6 +611,9 @@ export function initNowPlaying({ onToggleImmersive }) {
 
     // Transport state
     el.playIcon.setAttribute('href', state.isPlaying ? '#i-pause' : '#i-play');
+    el.eq.classList.toggle('paused', !state.isPlaying);
+    const stateLabel = state.isPlaying ? 'Now playing' : 'Paused';
+    if (el.stateLabel.textContent !== stateLabel) el.stateLabel.textContent = stateLabel;
     el.btnShuffle.classList.toggle('on', state.shuffle);
     el.btnRepeat.classList.toggle('on', state.repeat !== 'off');
     el.btnRepeat.querySelector('use').setAttribute(
@@ -479,6 +641,9 @@ export function initNowPlaying({ onToggleImmersive }) {
     renderLyrics(state);
     syncLyrics(state);
     renderDevices(state);
+    renderFullLyrics(state);
+    syncFullLyrics(state);
+    paintFullBar(state);
   });
 
   return { visualizer };

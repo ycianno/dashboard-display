@@ -355,14 +355,16 @@
 
 /* ── Immersive mode: chrome retreats, artwork takes the room ─────────────── */
 
-.app.immersive .topbar {
+.app.immersive .topbar,
+.app.lyrics-full .topbar {
     opacity: 0;
     transform: translateY(-1rem);
     pointer-events: none;
     position: absolute;
 }
 
-.app.immersive .dock {
+.app.immersive .dock,
+.app.lyrics-full .dock {
     opacity: 0;
     transform: translateY(1rem);
     pointer-events: none;

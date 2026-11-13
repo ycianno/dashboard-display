@@ -53,6 +53,7 @@
         <symbol id="i-queue" viewBox="0 0 24 24"><path d="M15 6H3v2h12V6zm0 4H3v2h12v-2zM3 16h8v-2H3v2zM17 6v8.18c-.31-.11-.65-.18-1-.18a3 3 0 103 3V8h3V6h-5z"/></symbol>
         <symbol id="i-lyrics" viewBox="0 0 24 24"><path d="M4 3h16a1 1 0 011 1v12a1 1 0 01-1 1H8l-5 4V4a1 1 0 011-1zm2.5 4v1.8h11V7h-11zm0 4v1.8h7.5V11h-7.5z"/></symbol>
         <symbol id="i-chevron" viewBox="0 0 24 24"><path d="M9.3 5.3L7.9 6.7l5.3 5.3-5.3 5.3 1.4 1.4 6.7-6.7z"/></symbol>
+        <symbol id="i-collapse" viewBox="0 0 24 24"><path d="M5 16h3v3h2v-5H5v2zm3-8H5v2h5V5H8v3zm6 11h2v-3h3v-2h-5v5zm2-11V5h-2v5h5V8h-3z"/></symbol>
         <symbol id="i-expand" viewBox="0 0 24 24"><path d="M7 14H5v5h5v-2H7v-3zm-2-4h2V7h3V5H5v5zm12 7h-3v2h5v-5h-2v3zM14 5v2h3v3h2V5h-5z"/></symbol>
 
         <!-- Status -->
@@ -277,68 +278,89 @@
                                 </span>
                             </div>
 
-                            <div class="track-meta">
-                                <div class="track-title truncate" id="track-title">—</div>
-                                <div class="track-artist truncate" id="track-artist">—</div>
-                                <div class="track-album truncate" id="track-album"></div>
-                                <div class="lyric-cue" id="lyric-cue"></div>
-                            </div>
+                            <!-- Read on top (dead glass), pressed below (live glass):
+                                 the column is a flex stack with the controls pushed
+                                 to its foot, so they always land in the touch band. -->
+                            <div class="np-side">
+                                <div class="track-meta">
+                                    <div class="np-eyebrow" id="np-eyebrow">
+                                        <span class="eq" id="np-eq"><i></i><i></i><i></i></span>
+                                        <span id="np-state-label">Now playing</span>
+                                    </div>
+                                    <div class="track-title" id="track-title">—</div>
+                                    <div class="track-artist truncate" id="track-artist">—</div>
+                                    <div class="track-album truncate" id="track-album"></div>
+                                </div>
 
-                            <div class="viz-wrap">
-                                <canvas id="viz"></canvas>
-                            </div>
+                                <!-- Two lines of the song: the one being sung and the one
+                                     coming. A single line flickered past too fast to read. -->
+                                <div class="lyric-peek" id="lyric-peek">
+                                    <div class="lyric-cue" id="lyric-cue"></div>
+                                    <div class="lyric-next" id="lyric-next"></div>
+                                </div>
 
-                            <div class="progress">
-                                <div class="progress-hit" id="progress-hit" data-noswipe>
-                                    <div class="progress-track">
-                                        <div class="progress-fill" id="progress-fill">
-                                            <span class="progress-knob"></span>
+                                <div class="np-controls">
+                                    <div class="viz-wrap">
+                                        <canvas id="viz"></canvas>
+                                    </div>
+
+                                    <div class="progress">
+                                        <div class="progress-hit" id="progress-hit" data-noswipe>
+                                            <div class="progress-track">
+                                                <div class="progress-fill" id="progress-fill">
+                                                    <span class="progress-knob"></span>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <div class="time-row tnum">
+                                            <span id="time-now">0:00</span>
+                                            <span id="time-total">0:00</span>
                                         </div>
                                     </div>
-                                </div>
-                                <div class="time-row tnum">
-                                    <span id="time-now">0:00</span>
-                                    <span id="time-total">0:00</span>
-                                </div>
-                            </div>
 
-                            <div class="transport">
-                                <button class="tbtn sm pressable" id="btn-shuffle" aria-label="Shuffle">
-                                    <svg class="ic ic-sm" aria-hidden="true"><use href="#i-shuffle"></use></svg>
-                                </button>
-                                <button class="tbtn pressable" id="btn-prev" aria-label="Previous">
-                                    <svg class="ic" aria-hidden="true"><use href="#i-prev"></use></svg>
-                                </button>
-                                <button class="play-btn pressable" id="btn-play" aria-label="Play or pause">
-                                    <svg class="ic" aria-hidden="true"><use href="#i-play" id="play-icon"></use></svg>
-                                </button>
-                                <button class="tbtn pressable" id="btn-next" aria-label="Next">
-                                    <svg class="ic" aria-hidden="true"><use href="#i-next"></use></svg>
-                                </button>
-                                <button class="tbtn sm pressable" id="btn-repeat" aria-label="Repeat">
-                                    <svg class="ic ic-sm" aria-hidden="true"><use href="#i-repeat"></use></svg>
-                                </button>
-                            </div>
+                                    <div class="transport">
+                                        <button class="tbtn sm pressable" id="btn-shuffle" aria-label="Shuffle">
+                                            <svg class="ic ic-sm" aria-hidden="true"><use href="#i-shuffle"></use></svg>
+                                        </button>
+                                        <button class="tbtn pressable" id="btn-prev" aria-label="Previous">
+                                            <svg class="ic" aria-hidden="true"><use href="#i-prev"></use></svg>
+                                        </button>
+                                        <button class="play-btn pressable" id="btn-play" aria-label="Play or pause">
+                                            <svg class="ic" aria-hidden="true"><use href="#i-play" id="play-icon"></use></svg>
+                                        </button>
+                                        <button class="tbtn pressable" id="btn-next" aria-label="Next">
+                                            <svg class="ic" aria-hidden="true"><use href="#i-next"></use></svg>
+                                        </button>
+                                        <button class="tbtn sm pressable" id="btn-repeat" aria-label="Repeat">
+                                            <svg class="ic ic-sm" aria-hidden="true"><use href="#i-repeat"></use></svg>
+                                        </button>
+                                    </div>
 
-                            <div class="aux-row">
-                                <!-- Kept in this row, not beside the title: the title sits on
-                                     the touch-zone boundary, this row is well inside it. -->
-                                <button class="tbtn heart-btn pressable" id="btn-like" aria-label="Save to Liked Songs" aria-pressed="false" hidden>
-                                    <svg class="ic heart-off" aria-hidden="true"><use href="#i-heart"></use></svg>
-                                    <svg class="ic heart-on" aria-hidden="true"><use href="#i-heart-fill"></use></svg>
-                                </button>
-                                <div class="vol">
-                                    <svg class="ic ic-sm" aria-hidden="true"><use href="#i-volume" id="vol-icon"></use></svg>
-                                    <div class="vol-hit" id="vol-hit" data-noswipe>
-                                        <div class="vol-track">
-                                            <div class="vol-fill" id="vol-fill"></div>
+                                    <div class="aux-row">
+                                        <!-- Kept in this row, not beside the title: the title sits on
+                                             the touch-zone boundary, this row is well inside it. -->
+                                        <button class="tbtn heart-btn pressable" id="btn-like" aria-label="Save to Liked Songs" aria-pressed="false" hidden>
+                                            <svg class="ic heart-off" aria-hidden="true"><use href="#i-heart"></use></svg>
+                                            <svg class="ic heart-on" aria-hidden="true"><use href="#i-heart-fill"></use></svg>
+                                        </button>
+                                        <div class="vol">
+                                            <svg class="ic ic-sm" aria-hidden="true"><use href="#i-volume" id="vol-icon"></use></svg>
+                                            <div class="vol-hit" id="vol-hit" data-noswipe>
+                                                <div class="vol-track">
+                                                    <div class="vol-fill" id="vol-fill"></div>
+                                                </div>
+                                            </div>
                                         </div>
+                                        <button class="aux-btn pressable" id="btn-lyrics-full" aria-label="Full-screen lyrics">
+                                            <svg class="ic" aria-hidden="true"><use href="#i-lyrics"></use></svg>
+                                            <span>Lyrics</span>
+                                        </button>
+                                        <button class="aux-btn device-btn pressable" id="btn-device">
+                                            <svg class="ic" aria-hidden="true"><use href="#i-speaker"></use></svg>
+                                            <span class="truncate" id="device-name">—</span>
+                                        </button>
                                     </div>
                                 </div>
-                                <button class="device-btn pressable" id="btn-device">
-                                    <svg class="ic" aria-hidden="true"><use href="#i-speaker"></use></svg>
-                                    <span class="truncate" id="device-name">—</span>
-                                </button>
                             </div>
                         </div>
                     </div>
@@ -371,6 +393,39 @@
                             </button>
                         </div>
                     </aside>
+                </div>
+
+                <!-- Full-screen lyrics. The words fill the dead top of the glass;
+                     everything you can press sits in the bar along the bottom. -->
+                <div class="lyr-full" id="lyr-full" aria-hidden="true">
+                    <div class="lyr-full-scroll" id="lyr-full-scroll"></div>
+                    <div class="lyr-full-bar">
+                        <img class="lyr-full-art" id="lyr-full-art" src="" alt="">
+                        <div class="lyr-full-meta">
+                            <span class="t truncate" id="lyr-full-title">—</span>
+                            <span class="a truncate" id="lyr-full-artist">—</span>
+                        </div>
+                        <div class="lyr-full-progress">
+                            <span class="tnum" id="lyr-full-now">0:00</span>
+                            <span class="lyr-full-track"><i id="lyr-full-fill"></i></span>
+                            <span class="tnum" id="lyr-full-total">0:00</span>
+                        </div>
+                        <div class="lyr-full-transport">
+                            <button class="tbtn pressable" id="lyr-full-prev" aria-label="Previous">
+                                <svg class="ic" aria-hidden="true"><use href="#i-prev"></use></svg>
+                            </button>
+                            <button class="play-btn pressable" id="lyr-full-play" aria-label="Play or pause">
+                                <svg class="ic" aria-hidden="true"><use href="#i-play" id="lyr-full-play-icon"></use></svg>
+                            </button>
+                            <button class="tbtn pressable" id="lyr-full-next" aria-label="Next">
+                                <svg class="ic" aria-hidden="true"><use href="#i-next"></use></svg>
+                            </button>
+                        </div>
+                        <button class="aux-btn pressable" id="lyr-full-close" aria-label="Close full-screen lyrics">
+                            <svg class="ic" aria-hidden="true"><use href="#i-collapse"></use></svg>
+                            <span>Close</span>
+                        </button>
+                    </div>
                 </div>
             </section>
 

@@ -178,10 +178,24 @@ function main() {
   let peekTimer = null;
 
   function setImmersive(value) {
+    if (value && lyricsFull) setLyricsFull(false);
     immersive = value;
     app.classList.toggle('immersive', immersive);
     $('#btn-immersive').classList.toggle('on', immersive);
     if (immersive) peekChrome();
+  }
+
+  // ── Full-screen lyrics ──────────────────────────────────────────────────
+  // Its own mode rather than a face of immersive: immersive is the cover, this
+  // is the words, and each has its own way out.
+  let lyricsFull = false;
+
+  function setLyricsFull(value) {
+    if (value && immersive) setImmersive(false);
+    if (value && router.current.id !== 'now-playing') router.goToId('now-playing');
+    lyricsFull = value;
+    app.classList.toggle('lyrics-full', lyricsFull);
+    document.dispatchEvent(new CustomEvent('lyricsfull', { detail: lyricsFull }));
   }
 
   function peekChrome() {
@@ -204,6 +218,7 @@ function main() {
       miniPlayer.setActiveView(view.id);
       // Immersive only makes sense on the music page.
       if (view.id !== 'now-playing' && immersive) setImmersive(false);
+      if (view.id !== 'now-playing' && lyricsFull) setLyricsFull(false);
       app.dataset.view = view.id;
     }
   });
@@ -223,7 +238,8 @@ function main() {
   // Each view gets the same context; most ignore most of it.
   const context = {
     goToView: (id) => router.goToId(id),
-    onToggleImmersive: () => setImmersive(!immersive)
+    onToggleImmersive: () => setImmersive(!immersive),
+    setLyricsFull
   };
   views.forEach((view) => view.init(context));
   bindTopbar();
@@ -248,6 +264,11 @@ function main() {
       case 'ArrowRight': router.next(); break;
       case 'ArrowLeft': router.prev(); break;
       case 'f': case 'F': setImmersive(!immersive); break;
+      case 'l': case 'L': setLyricsFull(!lyricsFull); break;
+      case 'Escape':
+        if (lyricsFull) setLyricsFull(false);
+        else if (immersive) setImmersive(false);
+        break;
       default: {
         // 1..9 jump straight to a page, however many pages are configured.
         if (/^[1-9]$/.test(event.key)) {

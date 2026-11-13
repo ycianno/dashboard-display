@@ -4,7 +4,7 @@
 
 .np {
     display: grid;
-    grid-template-columns: minmax(0, 1fr) 25rem;
+    grid-template-columns: minmax(0, 1fr) 24rem;
     gap: var(--gutter);
     height: 100%;
     transition: grid-template-columns 420ms var(--ease-out);
@@ -73,34 +73,43 @@
     box-shadow: 0 0.6rem 2rem var(--accent-dim);
 }
 
-/* ── Active player ───────────────────────────────────────────────────────── */
+/* ── Active player ───────────────────────────────────────────────────────
+   Two columns: the cover as large as the card's height allows, and a text
+   column that reads top-down — what this is, the words, then the controls.
+   The controls sit at the foot of the column, which is the bottom half of
+   the glass, where this panel takes touches.
+   ────────────────────────────────────────────────────────────────────────── */
+
+/* Sizes inside the stage follow the stage, not the window: the same card is
+   ~60% wide with the side panel and full width in immersive mode. */
+.np-stage { container-type: size; }
 
 .np-player {
-    display: flex;
-    flex-direction: column;
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr);
+    grid-template-rows: minmax(0, 1fr);
     align-items: center;
+    gap: clamp(1.75rem, 4.5cqw, 3.5rem);
     width: 100%;
-    max-width: 30rem;
+    height: 100%;
     animation: riseIn var(--dur-slow) var(--ease-out);
 }
 
 .art-frame {
     position: relative;
-    width: min(20rem, 42vh);
+    width: min(100cqh - 4rem, 46cqw);
     aspect-ratio: 1;
-    border-radius: var(--r-xl);
+    border-radius: var(--r-lg);
     flex-shrink: 0;
-    margin-bottom: var(--s-5);
-    transition: width 420ms var(--ease-out);
 }
 
 .art-frame::after {
     /* Colour bloom cast by the artwork onto the card behind it. */
     content: '';
     position: absolute;
-    inset: 8%;
-    border-radius: var(--r-xl);
-    box-shadow: 0 1.6rem 4rem var(--accent-glow), 0 0.8rem 2rem rgba(0, 0, 0, 0.8);
+    inset: 10%;
+    border-radius: var(--r-lg);
+    box-shadow: 0 2.2rem 5rem var(--accent-glow), 0 1rem 2.4rem rgba(0, 0, 0, 0.8);
     transition: box-shadow 1.2s var(--ease-out);
     z-index: 0;
 }
@@ -111,91 +120,144 @@
     width: 100%;
     height: 100%;
     object-fit: cover;
-    border-radius: var(--r-xl);
-    box-shadow: 0 1.2rem 2.4rem rgba(0, 0, 0, 0.55);
+    border-radius: var(--r-lg);
+    box-shadow: 0 1.4rem 3rem rgba(0, 0, 0, 0.55), inset 0 0 0 1px rgba(255, 255, 255, 0.06);
     transition: transform var(--dur) var(--ease-out);
 }
 
-.art-frame:active img { transform: scale(0.97); }
+.art-frame:active img { transform: scale(0.98); }
 
 .art-frame .expand-hint {
     position: absolute;
     z-index: 2;
-    right: 0.7rem;
-    bottom: 0.7rem;
+    right: 0.8rem;
+    bottom: 0.8rem;
     display: grid;
     place-items: center;
-    width: 2.2rem;
-    height: 2.2rem;
+    width: 2.4rem;
+    height: 2.4rem;
     border-radius: var(--r-sm);
-    background: rgba(4, 6, 12, 0.55);
+    background: rgba(4, 6, 12, 0.5);
     backdrop-filter: blur(10px);
     -webkit-backdrop-filter: blur(10px);
     border: 1px solid var(--stroke-2);
     color: var(--text-1);
-    opacity: 0.75;
+    opacity: 0.8;
+}
+
+.np-side {
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    gap: var(--s-4);
+    height: 100%;
+    min-width: 0;
 }
 
 .track-meta {
-    text-align: center;
-    width: 100%;
-    margin-bottom: var(--s-3);
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
 }
 
+.np-eyebrow {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.55rem;
+    font-size: var(--t-xs);
+    font-weight: 700;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    color: var(--accent-soft);
+}
+
+.np-eyebrow .eq { width: 0.8rem; height: 0.75rem; }
+
 .track-title {
+    margin-top: var(--s-3);
     font-family: var(--font-display);
-    font-size: var(--t-2xl);
+    font-size: clamp(2.1rem, 5.4cqw, 3.6rem);
     font-weight: 800;
-    line-height: 1.15;
-    letter-spacing: -0.02em;
+    line-height: 1.02;
+    letter-spacing: -0.035em;
+    text-wrap: balance;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
 }
 
 .track-artist {
-    font-size: var(--t-lg);
-    font-weight: 500;
-    color: var(--text-2);
-    margin-top: 0.25rem;
+    margin-top: var(--s-2);
+    font-size: var(--t-xl);
+    font-weight: 600;
+    color: rgba(243, 246, 252, 0.74);
 }
 
 .track-album {
+    margin-top: 0.2rem;
     font-size: var(--t-sm);
     color: var(--text-3);
-    margin-top: 0.3rem;
 }
 
-/* One-line lyric under the title — the lock-screen touch. */
-.lyric-cue {
-    min-height: 1.6rem;
-    margin-top: var(--s-3);
-    font-size: var(--t-lg);
-    font-weight: 600;
-    color: var(--accent-soft);
-    text-align: center;
-    line-height: 1.4;
+/* Two lines of the song, on an accent rule: the lock-screen touch, made
+   readable from across the room. Space is kept when there are no lyrics so
+   the controls never jump. */
+.lyric-peek {
+    padding-left: var(--s-4);
+    border-left: 3px solid var(--accent);
+    min-height: 4.6rem;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    gap: 0.3rem;
     opacity: 0;
     transition: opacity var(--dur) var(--ease-out);
 }
 
-.lyric-cue.visible { opacity: 1; }
+.lyric-peek.visible { opacity: 1; }
+
+.lyric-cue {
+    font-family: var(--font-display);
+    font-size: var(--t-xl);
+    font-weight: 700;
+    line-height: 1.2;
+    color: var(--text-1);
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+}
+
+.lyric-next {
+    font-size: var(--t-md);
+    font-weight: 600;
+    color: var(--text-3);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.np-controls {
+    display: flex;
+    flex-direction: column;
+    gap: var(--s-3);
+}
 
 /* Visualizer */
 .viz-wrap {
     width: 100%;
     display: flex;
-    justify-content: center;
-    margin-bottom: var(--s-2);
+    opacity: 0.75;
 }
 
 #viz {
     width: 100%;
-    height: 2.2rem;
+    height: 2.4rem;
 }
 
 /* Progress */
-.progress {
-    width: 100%;
-    margin-bottom: var(--s-4);
-}
+.progress { width: 100%; }
 
 .progress-hit {
     /* Generous vertical padding so a fingertip can hit a 6px bar. */
@@ -205,9 +267,9 @@
 
 .progress-track {
     position: relative;
-    height: 0.35rem;
+    height: 0.4rem;
     border-radius: var(--r-pill);
-    background: var(--surface-3);
+    background: rgba(255, 255, 255, 0.1);
 }
 
 .progress-fill {
@@ -224,11 +286,11 @@
 
 .progress-knob {
     position: absolute;
-    right: -0.45rem;
+    right: -0.5rem;
     top: 50%;
     transform: translateY(-50%);
-    width: 0.9rem;
-    height: 0.9rem;
+    width: 1rem;
+    height: 1rem;
     border-radius: 50%;
     background: #fff;
     box-shadow: 0 0.15rem 0.6rem rgba(0, 0, 0, 0.7);
@@ -243,89 +305,86 @@
     font-size: var(--t-sm);
     font-weight: 600;
     color: var(--text-2);
-    margin-top: 0.3rem;
 }
 
-/* Transport */
+/* Transport — spread across the column so it lines up with the bar above. */
 .transport {
     display: flex;
     align-items: center;
-    justify-content: center;
-    gap: var(--s-5);
-    margin-bottom: var(--s-4);
+    justify-content: space-between;
+    padding-inline: 0.2rem;
 }
 
 .tbtn {
+    position: relative;
     display: grid;
     place-items: center;
-    width: 3.1rem;
-    height: 3.1rem;
+    width: 3.5rem;
+    height: 3.5rem;
     border-radius: 50%;
-    color: var(--text-2);
-    background: var(--surface-1);
-    border: 1px solid var(--stroke-1);
+    color: var(--text-1);
 }
 
-.tbtn.sm { width: 2.6rem; height: 2.6rem; }
+.tbtn .ic { width: 1.9rem; height: 1.9rem; }
+.tbtn.sm { width: 3rem; height: 3rem; color: var(--text-2); }
+.tbtn.sm .ic { width: 1.3rem; height: 1.3rem; }
+.tbtn:active { background: var(--surface-2); }
 
-.tbtn.on {
-    color: var(--accent);
-    border-color: var(--accent-dim);
-    background: var(--surface-2);
-}
+.tbtn.on { color: var(--accent); }
 
 .tbtn.on::after {
     content: '';
     position: absolute;
-    width: 0.25rem;
-    height: 0.25rem;
+    width: 0.28rem;
+    height: 0.28rem;
     border-radius: 50%;
     background: var(--accent);
-    transform: translateY(1.15rem);
+    transform: translateY(1.25rem);
 }
-
-.tbtn { position: relative; }
 
 .play-btn {
     display: grid;
     place-items: center;
-    width: 4.2rem;
-    height: 4.2rem;
+    width: 4.8rem;
+    height: 4.8rem;
     border-radius: 50%;
     background: var(--accent);
     color: var(--accent-ink);
-    box-shadow: 0 0.6rem 2rem var(--accent-dim);
+    box-shadow: 0 0.8rem 2.4rem var(--accent-dim), inset 0 1px 0 rgba(255, 255, 255, 0.25);
 }
 
-.play-btn .ic { width: 1.8rem; height: 1.8rem; }
+.play-btn .ic { width: 2rem; height: 2rem; }
 
-/* Secondary row: volume + device + repeat mode readout */
+/* Secondary row: like, volume, lyrics, device */
 .aux-row {
     display: flex;
     align-items: center;
-    gap: var(--s-4);
+    gap: var(--s-3);
     width: 100%;
 }
+
+.aux-row .heart-btn { width: 3rem; height: 3rem; }
+.aux-row .heart-btn .ic { width: 1.45rem; height: 1.45rem; }
 
 .vol {
     display: flex;
     align-items: center;
     gap: var(--s-3);
     flex: 1;
-    min-width: 0;
+    min-width: 4rem;
     color: var(--text-2);
 }
 
 .vol-hit {
     flex: 1;
-    padding: 0.6rem 0;
+    padding: 0.7rem 0;
     touch-action: none;
 }
 
 .vol-track {
     height: 0.3rem;
     border-radius: var(--r-pill);
-    background: var(--surface-3);
+    background: rgba(255, 255, 255, 0.1);
 }
 
 .vol-fill {
@@ -338,21 +397,34 @@
 
 .vol-hit:active .vol-fill { background: var(--accent); }
 
-.device-btn {
-    display: flex;
+/* A labelled pill: Lyrics, the device, Close. Tall enough for a fingertip. */
+.aux-btn {
+    display: inline-flex;
     align-items: center;
-    gap: var(--s-2);
-    max-width: 11rem;
-    padding: 0.5rem 0.85rem;
-    border-radius: var(--r-md);
-    background: var(--surface-1);
+    gap: 0.45rem;
+    height: 3rem;
+    padding: 0 1rem 0 0.85rem;
+    border-radius: var(--r-pill);
+    background: var(--surface-2);
     border: 1px solid var(--stroke-1);
-    color: var(--text-2);
+    color: var(--text-1);
     font-size: var(--t-sm);
-    font-weight: 600;
+    font-weight: 700;
+    white-space: nowrap;
+    flex-shrink: 0;
 }
 
-.device-btn .ic { width: 1.05rem; height: 1.05rem; }
+.aux-btn .ic { width: 1.1rem; height: 1.1rem; color: var(--accent-soft); }
+.aux-btn:active { background: var(--surface-3); }
+
+.device-btn {
+    max-width: 11rem;
+    flex-shrink: 1;
+    min-width: 0;
+    color: var(--text-2);
+}
+
+.device-btn .ic { color: var(--text-2); }
 
 /* ── Side panel ──────────────────────────────────────────────────────────── */
 
@@ -410,9 +482,37 @@
 
 .panel-pane {
     display: none;
+    position: relative;
     height: 100%;
     padding: var(--s-4) var(--s-4) 0;
 }
+
+/* Long lists fade at their edges instead of being sliced by the card. */
+.panel-pane .scroll {
+    mask-image: linear-gradient(to bottom, transparent 0, #000 1.2rem, #000 calc(100% - 2rem), transparent 100%);
+    -webkit-mask-image: linear-gradient(to bottom, transparent 0, #000 1.2rem, #000 calc(100% - 2rem), transparent 100%);
+}
+
+.lyrics-expand {
+    position: absolute;
+    z-index: 2;
+    right: var(--s-4);
+    bottom: var(--s-3);
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    height: 2.7rem;
+    padding: 0 1rem;
+    border-radius: var(--r-pill);
+    background: rgba(12, 16, 28, 0.85);
+    border: 1px solid var(--stroke-2);
+    color: var(--text-1);
+    font-size: var(--t-sm);
+    font-weight: 700;
+    box-shadow: var(--card-shadow);
+}
+
+.lyrics-expand .ic { color: var(--accent-soft); }
 
 .panel-pane.active {
     display: block;
@@ -607,18 +707,187 @@
     -webkit-backdrop-filter: none;
 }
 
-.app.immersive .np-player {
-    max-width: 42rem;
+.app.immersive .art-frame { width: min(100cqh - 4rem, 48cqw); }
+.app.immersive .track-title { font-size: clamp(2.6rem, 5.6cqw, 4.6rem); }
+.app.immersive .track-artist { font-size: var(--t-2xl); }
+.app.immersive .lyric-cue { font-size: var(--t-2xl); }
+.app.immersive .vol,
+.app.immersive .device-btn { display: none; }
+.app.immersive .aux-row { justify-content: flex-end; }
+
+/* ══════════════════════════════════════════════════════════════════════════
+   Full-screen lyrics
+
+   The words take the screen over the blurred cover; the bar along the
+   bottom holds every control, because the bottom is the half of this
+   panel's glass that answers. The top bar and dock retreat as in immersive.
+   ══════════════════════════════════════════════════════════════════════════ */
+
+#view-now-playing { position: relative; }
+
+.lyr-full {
+    position: absolute;
+    inset: 0;
+    display: none;
+    grid-template-rows: minmax(0, 1fr) auto;
+    gap: var(--s-4);
 }
 
-.app.immersive .art-frame {
-    width: min(28rem, 52vh);
+.app.lyrics-full .np { display: none; }
+
+.app.lyrics-full .lyr-full {
+    display: grid;
+    animation: riseIn var(--dur-slow) var(--ease-out);
 }
 
-.app.immersive .track-title { font-size: var(--t-3xl); }
-.app.immersive .track-artist { font-size: var(--t-xl); }
-.app.immersive .lyric-cue { font-size: var(--t-xl); min-height: 2rem; }
-.app.immersive .aux-row { display: none; }
+/* The cover behind everything comes up from a tint to the whole backdrop. */
+body:has(.app.lyrics-full) .backdrop-art.visible {
+    opacity: 0.95;
+    filter: blur(70px) saturate(170%) brightness(0.62);
+}
+
+.lyr-full-scroll {
+    position: relative;
+    overflow: hidden;
+    padding: 34vh clamp(1.5rem, 6vw, 6rem) 40vh;
+    mask-image: linear-gradient(to bottom, transparent 0, #000 22%, #000 74%, transparent 100%);
+    -webkit-mask-image: linear-gradient(to bottom, transparent 0, #000 22%, #000 74%, transparent 100%);
+}
+
+.lf-line {
+    max-width: 26ch;
+    margin: 0 0 0.5em;
+    font-family: var(--font-display);
+    font-size: clamp(2.1rem, 3.9vw, 3.8rem);
+    font-weight: 800;
+    line-height: 1.12;
+    letter-spacing: -0.025em;
+    text-wrap: balance;
+    color: rgba(255, 255, 255, 0.3);
+    transition: color 420ms var(--ease-out), opacity 420ms var(--ease-out), text-shadow 420ms var(--ease-out);
+}
+
+.lf-line.past { color: rgba(255, 255, 255, 0.16); }
+.lf-line.soon { color: rgba(255, 255, 255, 0.52); }
+
+.lf-line.current {
+    color: #fff;
+    text-shadow: 0 0 2.6rem var(--accent-glow);
+}
+
+.lf-line.gap {
+    font-size: clamp(1.4rem, 2.4vw, 2.2rem);
+    color: var(--accent-dim);
+}
+
+.lf-line.gap.current { color: var(--accent-soft); }
+
+.lyr-full-scroll.plain .lf-line {
+    max-width: 40ch;
+    margin-bottom: 0.25em;
+    font-size: clamp(1.5rem, 2.5vw, 2.3rem);
+    font-weight: 700;
+    color: rgba(255, 255, 255, 0.78);
+}
+
+.lyr-full-scroll.empty {
+    display: grid;
+    place-items: center;
+    padding: 0;
+    mask-image: none;
+    -webkit-mask-image: none;
+}
+
+.lf-empty {
+    display: grid;
+    justify-items: center;
+    gap: var(--s-3);
+    text-align: center;
+}
+
+.lf-empty .ic { width: 3rem; height: 3rem; color: var(--accent-soft); opacity: 0.8; }
+
+.lf-empty h2 {
+    font-family: var(--font-display);
+    font-size: var(--t-3xl);
+    font-weight: 800;
+    letter-spacing: -0.03em;
+}
+
+.lf-empty p { font-size: var(--t-lg); color: var(--text-2); }
+
+.lyr-full-bar {
+    display: grid;
+    grid-template-columns: auto minmax(8rem, 15rem) minmax(0, 1fr) auto auto;
+    align-items: center;
+    gap: var(--s-5);
+    padding: var(--s-3) var(--s-4) var(--s-3) var(--s-3);
+    border-radius: var(--r-xl);
+    background: rgba(6, 8, 15, 0.5);
+    backdrop-filter: blur(30px) saturate(140%);
+    -webkit-backdrop-filter: blur(30px) saturate(140%);
+    border: 1px solid var(--stroke-1);
+    box-shadow: var(--card-shadow), var(--card-highlight);
+}
+
+.lyr-full-art {
+    width: 4rem;
+    height: 4rem;
+    border-radius: var(--r-sm);
+    object-fit: cover;
+}
+
+.lyr-full-meta {
+    display: flex;
+    flex-direction: column;
+    gap: 0.1rem;
+    min-width: 0;
+}
+
+.lyr-full-meta .t {
+    font-family: var(--font-display);
+    font-size: var(--t-lg);
+    font-weight: 700;
+}
+
+.lyr-full-meta .a { font-size: var(--t-sm); color: var(--text-2); }
+
+.lyr-full-progress {
+    display: flex;
+    align-items: center;
+    gap: var(--s-3);
+    min-width: 0;
+    font-size: var(--t-xs);
+    font-weight: 600;
+    color: var(--text-2);
+}
+
+.lyr-full-track {
+    position: relative;
+    flex: 1;
+    height: 0.35rem;
+    border-radius: var(--r-pill);
+    background: rgba(255, 255, 255, 0.12);
+    overflow: hidden;
+}
+
+.lyr-full-track > i {
+    position: absolute;
+    inset: 0 auto 0 0;
+    width: 0%;
+    border-radius: inherit;
+    background: var(--accent);
+    transition: width 1s linear;
+}
+
+.lyr-full-transport {
+    display: flex;
+    align-items: center;
+    gap: var(--s-2);
+}
+
+.lyr-full-transport .play-btn { width: 4rem; height: 4rem; }
+.lyr-full-transport .play-btn .ic { width: 1.7rem; height: 1.7rem; }
 
 /* ── Heart (Liked Songs) ───────────────────────────────────────────────────
    Both hearts stay in the DOM, stacked in one grid cell, and cross-fade:
